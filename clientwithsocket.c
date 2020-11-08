@@ -13,7 +13,7 @@ on a machine. The name of this machine must be entered in the function gethostby
 #include<netinet/in.h>
 #include<netdb.h>
 
-#define PORTNUM  5001 /* the port number that the server is listening to*/
+#define PORTNUM  5220 /* the port number that the server is listening to*/
 #define DEFAULT_PROTOCOL 0  /*constant for default protocol*/
 
 
@@ -43,7 +43,7 @@ void main()
    /* before connecting the socket we need to set up the right     	values in the different fields of the structure server_addr 
    you can check the definition of this structure on your own*/
    
-    server = gethostbyname("osnode12"); 
+    server = gethostbyname("osnode04"); 
 
    if (server == NULL)
    {
@@ -76,29 +76,35 @@ void main()
    /* now lets send a message to the server. the message will be
      whatever the user wants to write to the server.*/
   
-   printf("enter a nessage that you want the server to receive	\n");
-   bzero(buffer,256);
-   fgets(buffer,255,stdin);
-   status = write(socketid, buffer, strlen(buffer));
-
-   if (status < 0)
+   int res = strcmp(buffer,"quit\n");
+   while(res != 0)
    {
-     printf("error while sending client message to server\n");
-   }
+     printf("enter a nessage that you want the server to receive\n");
+     bzero(buffer,256);
+     fgets(buffer,255,stdin);
+     status = write(socketid, buffer, strlen(buffer));
+     
+     res = strcmp(buffer,"quit\n");
    
-/* Read server response */
-   bzero(buffer,256);
-   status = read(socketid, buffer, 255);
-   
-   /* Upon successful completion, read() returns the number 
-   of bytes actually read from the file associated with fields.
-   This number is never greater than nbyte. Otherwise, -1 is      	returned. */
-   if (status < 0) {
-      perror("error while reading message from server");
-      exit(1);
-   }
-   
-   printf("%s\n",buffer);
+     if (status < 0)
+     {
+       printf("error while sending client message to server\n");
+     }
+     
+  /* Read server response */
+     bzero(buffer,256);
+     status = read(socketid, buffer, 255);
+     
+     /* Upon successful completion, read() returns the number 
+     of bytes actually read from the file associated with fields.
+     This number is never greater than nbyte. Otherwise, -1 is      	returned. */
+     if (status < 0) {
+        perror("error while reading message from server");
+        exit(1);
+     }
+     
+     printf("%s\n",buffer);
+  }
 
 
 
