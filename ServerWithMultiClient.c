@@ -92,10 +92,9 @@ void read_from (int sock) {
  * function writes the current game board
  * to the given socket. 
 */
-void write_board (int sock) {
-   int status;
+char board_str[(NUM_CARDS*2)+6];
+void write_board () {
    int i, j = 0;
-   char board_str[(NUM_CARDS*2)+6];
    int new_line = NUM_CARDS/3;
    for(i = 0; i < NUM_CARDS; i++)
    {
@@ -113,78 +112,60 @@ void write_board (int sock) {
          j++;
       }
    }
-   printf("%s\n", board_str);
-   board_str[j] = '\0';
-   status= write(sock, board_str,(NUM_CARDS*2)+6);
-   
-   if (status < 0) {
-      perror("ERROR writing to socket");
-      exit(1);
-   }
 }
-int order = 0;
-int neworder = 0;
 void * handle_connection(void* p_newsockfd)
 {
-       int newsockfd = *((int*)p_newsockfd);
-       char buffer[256];
-       bool playing = false;
-       int status;
-       int res_quit = strcmp(buffer2,"quit\n");
-       int count = 0;
-       while(res_quit!=0)
-       {
-          if(playing)
-          {
-            char message[255] = "Hi there user ";
-            char result[50];
-            if(pthread_self() == th1)
-            {
-              strcpy(result,"1");
-            }
-            else if(pthread_self() == th2)
-            {
-              strcpy(result,"2");
-            }
-            strcat(message,result);
-            strcat(message,"\n");
-            status = write(newsockfd,message,strlen(message));
-          }
-          read_from(newsockfd);
-          
-          int res_ready = strcmp(buffer2,"ready\n");
-          if(res_ready != 0 && !playing) 
-          {
-             status= write(newsockfd, "Send message \'ready\' to begin game.\n", 36);
- 
-             if (status < 0) {
-                perror("ERROR writing to socket");
-                exit(1);
-             }
-             printf("Client must send message \'ready\' to begin game.\n");
-          }
-          else if(playing)
-          { 
-            char first[255];  //prints out the card chosen
-            strcpy(first,buffer2);
-            printf("%s\n",first);
-          }
-          else if(!playing)
-          {
-             printf("%s", buffer2); // print ready
-             // ideally we would have a function that takes u into gameplay, but for now it just prints the board 8~)
-             // which also means that itll ask u to send a ready message for each turn rn
-             // ALSO ideally all this logic won't be in main bc it looks super messy
-             write_board(newsockfd);
-             // once we accept choices from the user, we can use ASCII value comparions to
-             // be sure choices are between 'a' and 'r'
-             playing = true;
-          }
-          res_quit = strcmp(buffer2,"quit\n");
-          // bzero(buffer2,256);
-       }
-       return NULL;
+     int newsockfd = *((int*)p_newsockfd);
+     char buffer[256];
+     int counter = 0;
+     bool playing = false;
+     int status;
+     int res_quit = strcmp(buffer2,"quit\n");
+     int count = 0;
+     char wait_turn[255] = "Please wait your turn\n"; //first write waiting message
+     status = write(newsockfd,wait_turn,strlen(wait_turn));
+     pthread_mutex_lock(&mutex);
+     char start_turn[255] = "It is the start of your turn\n"; //second write ready message
+     strcat(start_turn,board_str);
+     status = write(newsockfd,start_turn,strlen(start_turn));
+     
+     while(res_quit!=0)
+     {
+        read_from(newsockfd);
+        
+        int res_ready = strcmp(buffer2,"ready\n");
+        if(res_ready != 0 && !playing) 
+        {
+           status= write(newsockfd, "Send message \'ready\' to begin game.\n", 36);
+
+           if (status < 0) {
+              perror("ERROR writing to socket");
+              exit(1);
+           }
+           printf("Client must send message \'ready\' to begin game.\n");
+        }
+        else if(playing)
+        { 
+          char first[255];  //prints out the card chosen
+          strcpy(first,buffer2);
+          printf("%s\n",first);
+          counter++;
+          if(counter == 2)
+            break;
+        }
+        else
+        {
+          playing = true;
+        }
+        res_quit = strcmp(buffer2,"quit\n");
+        // bzero(buffer2,256);
+     }
+     char message2[255] = "End of turn\n";
+     status = write(newsockfd,message2,strlen(message2));
+     pthread_mutex_unlock(&mutex);
+     return NULL;
 }
+int order = 0;
 int main( int argc, char *argv[] ) {
    int sockfd, newsockfd, portno, clilen, newsockfd2;
    char buffer[256];
@@ -197,6 +178,9 @@ int main( int argc, char *argv[] ) {
    pthread_mutex_init(&mutex,NULL);
 
    assign_cards(); // initializes game board IMPORTANT
+   
+    write_board(); //create the board
+    printf("%s\n", board_str);
    
    /* First call to socket() function */
    sockfd = socket(AF_INET, SOCK_STREAM,DEFAULT_PROTOCOL );
@@ -247,8 +231,9 @@ int main( int argc, char *argv[] ) {
           exit(1);
         }
         pthread_create(&th2, &attr, *handle_connection, &newsockfd2);
-        order++;
+        order--;
      }
       
    } /* end of while */
+   pthread_mutex_destroy(&mutex); 
 }
