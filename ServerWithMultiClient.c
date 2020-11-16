@@ -244,8 +244,8 @@ int main( int argc, char *argv[] ) {
           perror("ERROR on accept");
           exit(1);
         }
-        p[order].turn = true;
-        pthread_create(&th1, &attr, *handle_connection, &newsockfd);
+        p[order].turn = true;   //sets p1's turn as on for being the first to connect
+        pthread_create(&th1, &attr, *handle_connection, &newsockfd);   //creates thread function for p1
         order++;
      }
      if(order == 1)
@@ -255,8 +255,8 @@ int main( int argc, char *argv[] ) {
           perror("ERROR on accept");
           exit(1);
         }
-        p[order].turn = false;
-        pthread_create(&th2, &attr, *handle_connection, &newsockfd2);
+        p[order].turn = false;     //sets p2's turn as not on
+        pthread_create(&th2, &attr, *handle_connection, &newsockfd2);  //creates thread function for p2
         order++;
      }
    }
