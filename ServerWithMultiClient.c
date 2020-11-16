@@ -117,12 +117,12 @@ void write_board() {
       }
    }
 }
+bool check = false;
 void * handle_connection(void* p_newsockfd)
 {
      int newsockfd = *((int*)p_newsockfd);
      char buffer[256];
      int status;
-     int count = 0;
      int new_order = 0;
      
      read_from(newsockfd); //read for the ready
@@ -138,8 +138,8 @@ void * handle_connection(void* p_newsockfd)
        printf("Client must send message \'ready\' to begin game.\n");
        read_from(newsockfd);
      }
-     
      while(1){
+       int count = 0;
        if(pthread_self() == th1)  //player1
        {
         printf("THREAD 1\n");
@@ -170,25 +170,38 @@ void * handle_connection(void* p_newsockfd)
        {
          if(count == 0)
          {
-           status = write(newsockfd,message1,strlen(message1));
+           status = write(newsockfd,message1,strlen(message1));   //sends please wait
+           count++;
+         }
+         if(check && count == 1)
+         {
+           status = write(newsockfd,board_str,strlen(board_str)); //sends the board to other clients ***NOTE*** This is where you would send a new board showing the hidden symbols once that is implemented
+           count++;
+         }
+         if(!check && count == 2)
+         {
+           status = write(newsockfd,board_str,strlen(board_str)); //send the board to other clients a 2nd time ***NOTE*** This is where you would send a new board showing the hidden symbols once that is implemented
            count++;
          }
        }
-       strcat(message1,"It is the start of your turn\n");
-       status = write(newsockfd, message1, strlen(message1));
+       char message2[255] = "It is the start of your turn\n"; //sends that its start of their turn and exits the client out of the loop they are in
+       status = write(newsockfd, message2, strlen(message2));
        count = 0;
        char first[255];   
-       char second[255];
-       pthread_mutex_lock(&mutex);   //mutex lock which reads the input and saves it as strings
+       char second[255];    //mutex lock which reads the input and saves it as strings
        read_from(newsockfd); 
        strcpy(first,buffer2);
+       check = true; 
        read_from(newsockfd);    
-       strcpy(second,buffer2);         
-       pthread_mutex_unlock(&mutex);       
+       strcpy(second,buffer2); 
+       check = false;       
        
        char f = first[0];
        char s = second[0];
-       pick_two(f,s);    
+       pthread_mutex_lock(&mutex);
+       pick_two(f,s); 
+       pthread_mutex_unlock(&mutex);     
+          
        
        p[new_order].turn = false; //makes current players turn complete
        if(new_order+1 < order+1)

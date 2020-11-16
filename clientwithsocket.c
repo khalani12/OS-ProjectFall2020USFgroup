@@ -44,7 +44,7 @@ void main()
    /* before connecting the socket we need to set up the right     	values in the different fields of the structure server_addr 
    you can check the definition of this structure on your own*/
    
-    server = gethostbyname("osnode08"); 
+    server = gethostbyname("osnode05"); 
 
    if (server == NULL)
    {
@@ -96,26 +96,18 @@ void main()
     res = strcmp(buffer,"quit\n");
     while(res != 0)  
     {
-     bool check = false;
-     bzero(buffer,256);                         //reads "wait for your turn"
-     status = read(socketid, buffer, 255);
-     int res_wait = strcmp(buffer,"Please wait for your turn\n");
-     while(res_wait == 0)
+     int res_wait = strcmp(buffer,"It is the start of your turn\n");
+     while(res_wait != 0)
      {
-       check = true;
-       printf("%s\n",buffer);
        bzero(buffer,256);                         
        status = read(socketid, buffer, 255);
        if (status < 0) {
           perror("error while reading message from server");
           exit(1);
        }
-       res_wait = strcmp(buffer,"Please wait for your turn\n");
-     }
-     if(check)
-       printf("It is the start of your turn\n");
-     else
        printf("%s\n",buffer);
+       res_wait = strcmp(buffer,"It is the start of your turn\n");
+     }
      printf("Enter first card: ");               //writes first card
      bzero(buffer,256);
      fgets(buffer,255,stdin);
