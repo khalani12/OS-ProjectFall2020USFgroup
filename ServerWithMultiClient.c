@@ -13,7 +13,7 @@
 #define DEFAULT_PROTOCOL 0  /*constant for default protocol*/
 #define SEMKEY ((key_t) 400L)
 #define NUM_CARDS 18
-pthread_t th1,th2; //threads
+pthread_t th1,th2,th3,th4,th5; //threads
 pthread_mutex_t mutex;
 int order = 0;
 void write_board();
@@ -150,6 +150,21 @@ void * handle_connection(void* p_newsockfd)
         printf("THREAD 2\n");
         new_order = 1;
        }     
+       if(pthread_self() == th3)  //player2
+       {
+        printf("THREAD 3\n");
+        new_order = 2;
+       }  
+       if(pthread_self() == th4)  //player2
+       {
+        printf("THREAD 4\n");
+        new_order = 3;
+       }  
+       if(pthread_self() == th5)  //player2
+       {
+        printf("THREAD 5\n");
+        new_order = 4;
+       }  
        char message1[255] = "Please wait for your turn\n";
        while(!p[new_order].turn)  //this is where players wait if its not their turn
        {
@@ -176,7 +191,7 @@ void * handle_connection(void* p_newsockfd)
        pick_two(f,s);    
        
        p[new_order].turn = false; //makes current players turn complete
-       if(new_order+1 < 2)
+       if(new_order+1 < order+1)
        {
          p[new_order+1].turn = true;  //makes next players turn next
        }
@@ -190,7 +205,7 @@ void * handle_connection(void* p_newsockfd)
 }
 
 int main( int argc, char *argv[] ) {
-   int sockfd, newsockfd, portno, clilen, newsockfd2;
+   int sockfd, newsockfd, portno, clilen, newsockfd2, newsockfd3, newsockfd4, newsockfd5;
    char buffer[256];
    struct sockaddr_in serv_addr, cli_addr;
    int status, pid;
@@ -235,7 +250,7 @@ int main( int argc, char *argv[] ) {
    
    listen(sockfd,5);
    clilen = sizeof(cli_addr);
-   while(order < 2) //exists after 2 players have connected. ** will need to append in implementation later
+   while(order < 5) //exists after 2 players have connected. ** will need to append in implementation later
    {
      if(order == 0)
      {
@@ -259,9 +274,45 @@ int main( int argc, char *argv[] ) {
         pthread_create(&th2, &attr, *handle_connection, &newsockfd2);  //creates thread function for p2
         order++;
      }
+     if(order == 2)
+     {
+        newsockfd3 = accept(sockfd, (struct sockaddr *) &cli_addr, 	&clilen);
+        if(newsockfd3 < 0){
+          perror("ERROR on accept");
+          exit(1);
+        }
+        p[order].turn = false;     //sets p2's turn as not on
+        pthread_create(&th3, &attr, *handle_connection, &newsockfd3);  //creates thread function for p2
+        order++;
+     }
+     if(order == 3)
+     {
+        newsockfd4 = accept(sockfd, (struct sockaddr *) &cli_addr, 	&clilen);
+        if(newsockfd4 < 0){
+          perror("ERROR on accept");
+          exit(1);
+        }
+        p[order].turn = false;     //sets p2's turn as not on
+        pthread_create(&th4, &attr, *handle_connection, &newsockfd4);  //creates thread function for p2
+        order++;
+     }
+     if(order == 4)
+     {
+        newsockfd5 = accept(sockfd, (struct sockaddr *) &cli_addr, 	&clilen);
+        if(newsockfd5 < 0){
+          perror("ERROR on accept");
+          exit(1);
+        }
+        p[order].turn = false;     //sets p2's turn as not on
+        pthread_create(&th5, &attr, *handle_connection, &newsockfd5);  //creates thread function for p2
+        order++;
+     }
    }
    pthread_join(th1,NULL);
    pthread_join(th2,NULL);
+   pthread_join(th3,NULL);
+   pthread_join(th4,NULL);
+   pthread_join(th5,NULL);
       
    pthread_mutex_destroy(&mutex); 
 }
