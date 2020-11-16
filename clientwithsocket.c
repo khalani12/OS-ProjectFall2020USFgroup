@@ -43,7 +43,7 @@ void main()
    /* before connecting the socket we need to set up the right     	values in the different fields of the structure server_addr 
    you can check the definition of this structure on your own*/
    
-    server = gethostbyname("osnode11"); 
+    server = gethostbyname("osnode05"); 
 
    if (server == NULL)
    {
@@ -75,8 +75,8 @@ void main()
 
    /* now lets send a message to the server. the message will be
      whatever the user wants to write to the server.*/
-  
-   int res = strcmp(buffer,"ready\n");
+   
+   int res = strcmp(buffer,"ready\n");                //ready check
    while(res != 0)
    {
      //printf("enter a nessage that you want the server to receive\n");
@@ -91,30 +91,17 @@ void main()
        printf("error while sending client message to server\n");
      }
    }
-  /* Read server response */
-     bzero(buffer,256);                         //After PLEASE WAIT YOUR TURN TEXT or full text
+   
+    res = strcmp(buffer,"quit\n");
+    while(res != 0)  
+    {
+     bzero(buffer,256);                         //reads "it is your turn"
      status = read(socketid, buffer, 255);
      if (status < 0) {
         perror("error while reading message from server");
         exit(1);
      }
      printf("%s\n",buffer);
-     int res2 = strcmp(buffer,"Please wait your turn\n");
-     while(res2==0)
-     {
-       bzero(buffer,256);                         //full text if its not your turn
-       status = read(socketid, buffer, 255);
-       if (status < 0) {
-          perror("error while reading message from server");
-          exit(1);
-       }
-       printf("%s\n",buffer);
-       res2 = strcmp(buffer,"Please wait your turn\n");
-     }
-     
-    res = strcmp(buffer,"quit\n");
-    while(res != 0)
-    {
      printf("Enter first card: ");
      bzero(buffer,256);
      fgets(buffer,255,stdin);
@@ -134,21 +121,6 @@ void main()
      {
        printf("error while sending client message to server\n");
      }
-     
-     bzero(buffer,256);
-     status = read(socketid, buffer, 255);
-     printf("%s\n",buffer);
-     if (status < 0) {
-        perror("error while reading message from server");
-        exit(1);
-     }
-      
-      bzero(buffer,256);              //end of turn message           
-      status = read(socketid, buffer, 255);
-      if (status < 0) {
-        perror("error while reading message from server");
-        exit(1);
-      }
     }
 
    /* this closes the socket*/

@@ -15,10 +15,13 @@
 #define NUM_CARDS 18
 pthread_t th1,th2; //threads
 pthread_mutex_t mutex;
+int order = 0;
+void write_board();
 struct Player{
    int player_num;
    int points;
-};struct Player player[5];
+   bool turn;
+};struct Player p[5];
 char symbols[NUM_CARDS] = {'=', '=', '&', '&', '!', '!', '?', '?', '*', '*', '%', '%', '@', '@', '}', '}', '#', '#'};
 
 struct Card{
@@ -64,8 +67,8 @@ void pick_two(char first, char second){
   if(card_set[findex].hidden_symbol == card_set[sindex].hidden_symbol)
   {
     printf("Correct\n");
-    card_set[findex].hidden_symbol = 'X';
-    card_set[sindex].hidden_symbol = 'X';
+    card_set[findex].face_symbol = 'X';
+    card_set[sindex].face_symbol = 'X';
   }
   else
   {
@@ -73,6 +76,7 @@ void pick_two(char first, char second){
     printf("%c ",card_set[findex].hidden_symbol);
     printf("%c\n",card_set[sindex].hidden_symbol);
   }
+  write_board();
 }
 
 char buffer2[256];
@@ -93,7 +97,7 @@ void read_from (int sock) {
  * to the given socket. 
 */
 char board_str[(NUM_CARDS*2)+6];
-void write_board () {
+void write_board() {
    int i, j = 0;
    int new_line = NUM_CARDS/3;
    for(i = 0; i < NUM_CARDS; i++)
@@ -117,55 +121,53 @@ void * handle_connection(void* p_newsockfd)
 {
      int newsockfd = *((int*)p_newsockfd);
      char buffer[256];
-     int counter = 0;
-     bool playing = false;
      int status;
-     int res_quit = strcmp(buffer2,"quit\n");
      int count = 0;
-     char wait_turn[255] = "Please wait your turn\n"; //first write waiting message
-     status = write(newsockfd,wait_turn,strlen(wait_turn));
-     pthread_mutex_lock(&mutex);
-     char start_turn[255] = "It is the start of your turn\n"; //second write ready message
-     strcat(start_turn,board_str);
-     status = write(newsockfd,start_turn,strlen(start_turn));
      
-     while(res_quit!=0)
+     read_from(newsockfd); //read for the ready
+     int res_ready = strcmp(buffer2,"ready\n");
+     if(res_ready != 0) 
      {
-        read_from(newsockfd);
-        
-        int res_ready = strcmp(buffer2,"ready\n");
-        if(res_ready != 0 && !playing) 
-        {
-           status= write(newsockfd, "Send message \'ready\' to begin game.\n", 36);
+       status= write(newsockfd, "Send message \'ready\' to begin game.\n", 36);
 
-           if (status < 0) {
-              perror("ERROR writing to socket");
-              exit(1);
-           }
-           printf("Client must send message \'ready\' to begin game.\n");
-        }
-        else if(playing)
-        { 
-          char first[255];  //prints out the card chosen
-          strcpy(first,buffer2);
-          printf("%s\n",first);
-          counter++;
-          if(counter == 2)
-            break;
-        }
-        else
-        {
-          playing = true;
-        }
-        res_quit = strcmp(buffer2,"quit\n");
-        // bzero(buffer2,256);
+       if (status < 0) {
+          perror("ERROR writing to socket");
+          exit(1);
+       }
+       printf("Client must send message \'ready\' to begin game.\n");
+       read_from(newsockfd);
      }
-     char message2[255] = "End of turn\n";
-     status = write(newsockfd,message2,strlen(message2));
-     pthread_mutex_unlock(&mutex);
+     
+     while(1){
+       sleep(1);                     //this sleep was necessary in order for the mutex to work for some reason
+       pthread_mutex_lock(&mutex);   //will need to fix this and get rid of the sleep
+       
+       if(pthread_self() == th1)
+        printf("THREAD 1\n");
+       if(pthread_self() == th2)
+        printf("THREAD 2\n");
+       
+       char message[255] = "It is the start of your turn\n";
+       status = write(newsockfd, message, strlen(message));
+       
+       char first[255];   
+       char second[255];
+       read_from(newsockfd);         //reading first card from player
+       strcpy(first,buffer2);
+       read_from(newsockfd);         //reading second card from player
+       strcpy(second,buffer2);
+       
+       char f = first[0];
+       char s = second[0];
+       pick_two(f,s);                //function to compare the 2 picked cards with the global board
+  
+       pthread_mutex_unlock(&mutex);  
+       printf("%s\n", board_str);   //prints the modified board server side
+     }
+
      return NULL;
 }
-int order = 0;
+
 int main( int argc, char *argv[] ) {
    int sockfd, newsockfd, portno, clilen, newsockfd2;
    char buffer[256];
@@ -212,7 +214,8 @@ int main( int argc, char *argv[] ) {
    
    listen(sockfd,5);
    clilen = sizeof(cli_addr);
-   while (1) {
+   while(order < 2) //exists after 2 players have connected. ** will need to append in implementation later
+   {
      if(order == 0)
      {
         newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, 	&clilen);
@@ -231,9 +234,11 @@ int main( int argc, char *argv[] ) {
           exit(1);
         }
         pthread_create(&th2, &attr, *handle_connection, &newsockfd2);
-        order--;
+        order++;
      }
+   }
+   pthread_join(th1,NULL);
+   pthread_join(th2,NULL);
       
-   } /* end of while */
    pthread_mutex_destroy(&mutex); 
 }
