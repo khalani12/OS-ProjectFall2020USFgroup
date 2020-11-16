@@ -123,6 +123,7 @@ void * handle_connection(void* p_newsockfd)
      char buffer[256];
      int status;
      int count = 0;
+     int new_order = 0;
      
      read_from(newsockfd); //read for the ready
      int res_ready = strcmp(buffer2,"ready\n");
@@ -139,32 +140,52 @@ void * handle_connection(void* p_newsockfd)
      }
      
      while(1){
-       sleep(1);                     //this sleep was necessary in order for the mutex to work for some reason
-       pthread_mutex_lock(&mutex);   //will need to fix this and get rid of the sleep
-       
-       if(pthread_self() == th1)
+       if(pthread_self() == th1)  //player1
+       {
         printf("THREAD 1\n");
-       if(pthread_self() == th2)
+        new_order = 0;
+       }
+       if(pthread_self() == th2)  //player2
+       {
         printf("THREAD 2\n");
-       
-       char message[255] = "It is the start of your turn\n";
-       status = write(newsockfd, message, strlen(message));
-       
+        new_order = 1;
+       }     
+       char message1[255] = "Please wait for your turn\n";
+       while(!p[new_order].turn)  //this is where players wait if its not their turn
+       {
+         if(count == 0)
+         {
+           status = write(newsockfd,message1,strlen(message1));
+           count++;
+         }
+       }
+       strcat(message1,"It is the start of your turn\n");
+       status = write(newsockfd, message1, strlen(message1));
+       count = 0;
        char first[255];   
        char second[255];
-       read_from(newsockfd);         //reading first card from player
+       pthread_mutex_lock(&mutex);   //mutex lock which reads the input and saves it as strings
+       read_from(newsockfd); 
        strcpy(first,buffer2);
-       read_from(newsockfd);         //reading second card from player
-       strcpy(second,buffer2);
+       read_from(newsockfd);    
+       strcpy(second,buffer2);         
+       pthread_mutex_unlock(&mutex);       
        
        char f = first[0];
        char s = second[0];
-       pick_two(f,s);                //function to compare the 2 picked cards with the global board
-  
-       pthread_mutex_unlock(&mutex);  
+       pick_two(f,s);    
+       
+       p[new_order].turn = false; //makes current players turn complete
+       if(new_order+1 < 2)
+       {
+         p[new_order+1].turn = true;  //makes next players turn next
+       }
+       else
+       {
+         p[0].turn = true;     //restarts the player queue
+       }
        printf("%s\n", board_str);   //prints the modified board server side
      }
-
      return NULL;
 }
 
@@ -223,6 +244,7 @@ int main( int argc, char *argv[] ) {
           perror("ERROR on accept");
           exit(1);
         }
+        p[order].turn = true;
         pthread_create(&th1, &attr, *handle_connection, &newsockfd);
         order++;
      }
@@ -233,6 +255,7 @@ int main( int argc, char *argv[] ) {
           perror("ERROR on accept");
           exit(1);
         }
+        p[order].turn = false;
         pthread_create(&th2, &attr, *handle_connection, &newsockfd2);
         order++;
      }

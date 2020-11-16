@@ -11,6 +11,7 @@ on a machine. The name of this machine must be entered in the function gethostby
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<netdb.h>
+#include<stdbool.h>
 
 #define PORTNUM  5220 /* the port number that the server is listening to*/
 #define DEFAULT_PROTOCOL 0  /*constant for default protocol*/
@@ -43,7 +44,7 @@ void main()
    /* before connecting the socket we need to set up the right     	values in the different fields of the structure server_addr 
    you can check the definition of this structure on your own*/
    
-    server = gethostbyname("osnode05"); 
+    server = gethostbyname("osnode08"); 
 
    if (server == NULL)
    {
@@ -95,14 +96,27 @@ void main()
     res = strcmp(buffer,"quit\n");
     while(res != 0)  
     {
-     bzero(buffer,256);                         //reads "it is your turn"
+     bool check = false;
+     bzero(buffer,256);                         //reads "wait for your turn"
      status = read(socketid, buffer, 255);
-     if (status < 0) {
-        perror("error while reading message from server");
-        exit(1);
+     int res_wait = strcmp(buffer,"Please wait for your turn\n");
+     while(res_wait == 0)
+     {
+       check = true;
+       printf("%s\n",buffer);
+       bzero(buffer,256);                         
+       status = read(socketid, buffer, 255);
+       if (status < 0) {
+          perror("error while reading message from server");
+          exit(1);
+       }
+       res_wait = strcmp(buffer,"Please wait for your turn\n");
      }
-     printf("%s\n",buffer);
-     printf("Enter first card: ");
+     if(check)
+       printf("It is the start of your turn\n");
+     else
+       printf("%s\n",buffer);
+     printf("Enter first card: ");               //writes first card
      bzero(buffer,256);
      fgets(buffer,255,stdin);
      status = write(socketid, buffer, strlen(buffer));
@@ -112,7 +126,7 @@ void main()
        printf("error while sending client message to server\n");
      }
      
-     printf("Enter second card: ");
+     printf("Enter second card: ");             //writes second card
      bzero(buffer2,256);
      fgets(buffer2,255,stdin);
      status = write(socketid, buffer2, strlen(buffer2));
