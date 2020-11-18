@@ -184,20 +184,34 @@ void * handle_connection(void* p_newsockfd)
            count++;
          }
        }
-       char message2[255] = "It is the start of your turn\n"; //sends that its start of their turn and exits the client out of the loop they are in
-       status = write(newsockfd, message2, strlen(message2));
-       count = 0;
-       char first[255];   
-       char second[255];    //mutex lock which reads the input and saves it as strings
-       read_from(newsockfd); 
-       strcpy(first,buffer2);
-       check = true; 
-       read_from(newsockfd);    
-       strcpy(second,buffer2); 
-       check = false;       
+      char message2[255] = "It is the start of your turn\n"; //sends that its start of their turn and exits the client out of the loop they are in
+      status = write(newsockfd, message2, strlen(message2));
+       bool first_choice_valid = false;
+       bool second_choice_valid = false;
+       char f = '\0', s = '\0';
+       while(!first_choice_valid || !second_choice_valid)
+       {
+         count = 0;
+         char first[255];   
+         char second[255];    //mutex lock which reads the input and saves it as strings
+         read_from(newsockfd); 
+         strcpy(first,buffer2);
+         check = true; 
+         read_from(newsockfd);    
+         strcpy(second,buffer2); 
+         check = false;       
        
-       char f = first[0];
-       char s = second[0];
+         f = first[0];
+         s = second[0];
+         if(f > 96 && f < 123)
+         {first_choice_valid = true;}
+         else
+         {status = write(newsockfd, "Not a valid letter for choice 1.");}
+         if(s > 96 && s < 123)
+         {second_choice_valid = true;}
+         else
+         {status = write(newsockfd, "Not a valid letter for choice 2.");}
+       }
        pthread_mutex_lock(&mutex);
        pick_two(f,s); 
        pthread_mutex_unlock(&mutex);     
@@ -294,8 +308,8 @@ int main( int argc, char *argv[] ) {
           perror("ERROR on accept");
           exit(1);
         }
-        p[order].turn = false;     //sets p2's turn as not on
-        pthread_create(&th3, &attr, *handle_connection, &newsockfd3);  //creates thread function for p2
+        p[order].turn = false;     //sets p3's turn as not on
+        pthread_create(&th3, &attr, *handle_connection, &newsockfd3);  //creates thread function for p3
         order++;
      }
      if(order == 3)
@@ -305,8 +319,8 @@ int main( int argc, char *argv[] ) {
           perror("ERROR on accept");
           exit(1);
         }
-        p[order].turn = false;     //sets p2's turn as not on
-        pthread_create(&th4, &attr, *handle_connection, &newsockfd4);  //creates thread function for p2
+        p[order].turn = false;     //sets p4's turn as not on
+        pthread_create(&th4, &attr, *handle_connection, &newsockfd4);  //creates thread function for p4
         order++;
      }
      if(order == 4)
@@ -316,8 +330,8 @@ int main( int argc, char *argv[] ) {
           perror("ERROR on accept");
           exit(1);
         }
-        p[order].turn = false;     //sets p2's turn as not on
-        pthread_create(&th5, &attr, *handle_connection, &newsockfd5);  //creates thread function for p2
+        p[order].turn = false;     //sets p5's turn as not on
+        pthread_create(&th5, &attr, *handle_connection, &newsockfd5);  //creates thread function for p5
         order++;
      }
    }
