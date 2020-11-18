@@ -202,9 +202,8 @@ void * handle_connection(void* p_newsockfd)
        pick_two(f,s); 
        pthread_mutex_unlock(&mutex);     
           
-       
        p[new_order].turn = false; //makes current players turn complete
-       if(new_order+1 < order+1)
+       if(new_order+1 < order)
        {
          p[new_order+1].turn = true;  //makes next players turn next
        }
