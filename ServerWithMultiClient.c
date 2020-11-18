@@ -61,22 +61,27 @@ void assign_cards() {
    }
 }
 
-void pick_two(char first, char second){
+bool pick_two(char first, char second){
   int findex = first - 97;
   int sindex = second - 97;
   if(card_set[findex].hidden_symbol == card_set[sindex].hidden_symbol)
   {
     printf("Correct\n");
+    card_set[findex].showing = false;
+    card_set[sindex].showing = false;
     card_set[findex].face_symbol = 'X';
     card_set[sindex].face_symbol = 'X';
+    write_board();
+    return true;
   }
   else
   {
     printf("WRONG\n");
     printf("%c ",card_set[findex].hidden_symbol);
     printf("%c\n",card_set[sindex].hidden_symbol);
+    write_board();
+    return false;
   }
-  write_board();
 }
 
 char buffer2[256];
@@ -105,8 +110,8 @@ void write_board() {
       if(card_set[i].showing == false)
       {board_str[j] = card_set[i].face_symbol;}
       else
-      {board_str[j] = ' ';} // if we are showing symbol instead of just not printing when a card is matched, line becomes:
-      //{board_str[j] = card_set[i].hidden_symbol;}
+      //{board_str[j] = ' ';} // if we are showing symbol instead of just not printing when a card is matched, line becomes:
+      {board_str[j] = card_set[i].hidden_symbol;}
       j++;
       board_str[j] = ' ';
       j++;
@@ -186,35 +191,37 @@ void * handle_connection(void* p_newsockfd)
        }
       char message2[255] = "It is the start of your turn\n"; //sends that its start of their turn and exits the client out of the loop they are in
       status = write(newsockfd, message2, strlen(message2));
-       bool first_choice_valid = false;
-       bool second_choice_valid = false;
-       char f = '\0', s = '\0';
-       while(!first_choice_valid || !second_choice_valid)
-       {
-         count = 0;
-         char first[255];   
-         char second[255];    //mutex lock which reads the input and saves it as strings
-         read_from(newsockfd); 
-         strcpy(first,buffer2);
-         check = true; 
-         read_from(newsockfd);    
-         strcpy(second,buffer2); 
-         check = false;       
-       
-         f = first[0];
-         s = second[0];
-         if(f > 96 && f < 123)
-         {first_choice_valid = true;}
-         else
-         {status = write(newsockfd, "Not a valid letter for choice 1.");}
-         if(s > 96 && s < 123)
-         {second_choice_valid = true;}
-         else
-         {status = write(newsockfd, "Not a valid letter for choice 2.");}
-       }
+      status = write(newsockfd, board_str, strlen(board_str));
+
+       count = 0;
+       char first[255];   
+       char second[255];    //mutex lock which reads the input and saves it as strings
+       read_from(newsockfd); 
+       strcpy(first,buffer2);
+       char f = first[0];
+       card_set[f-97].showing = true;
+       write_board();
+       status = write(newsockfd, board_str, strlen(board_str));
+
+       check = true; 
+       read_from(newsockfd);    
+       strcpy(second,buffer2); 
+       check = false;       
+       char s = second[0]; 
+       card_set[s-97].showing = true;
+       write_board();
+       status = write(newsockfd, board_str, strlen(board_str));
+
        pthread_mutex_lock(&mutex);
-       pick_two(f,s); 
-       pthread_mutex_unlock(&mutex);     
+       bool correct_choice = pick_two(f,s); 
+       pthread_mutex_unlock(&mutex);
+       if(correct_choice)
+       {status = write(newsockfd, "Correct!\n", 9);}
+       else
+       {status = write(newsockfd, "Incorrect!\n", 11);}
+       card_set[f-97].showing = false;
+       card_set[s-97].showing = false;
+       write_board();
           
        p[new_order].turn = false; //makes current players turn complete
        if(new_order+1 < order)

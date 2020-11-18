@@ -74,33 +74,30 @@ void main()
 
    printf("connected client socket to the server socket \n");
 
-   /* now lets send a message to the server. the message will be
-     whatever the user wants to write to the server.*/
    
-   int res = strcmp(buffer,"ready\n");                //ready check
+   printf("Send message \'ready\' to begin game.\n", 36);
+   int res = 1;
    while(res != 0)
    {
-     //printf("enter a nessage that you want the server to receive\n");
      bzero(buffer,256);                                    //starts socket
      fgets(buffer,255,stdin);
-     status = write(socketid, buffer, strlen(buffer));
      
-     res = strcmp(buffer,"ready\n");
-   
-     if (status < 0)
-     {
-       printf("error while sending client message to server\n");
-     }
+     res = strcmp(buffer,"ready\n"); // ready check
    }
-   
-    res = strcmp(buffer,"quit\n");
-    while(res != 0)  
+    status = write(socketid, buffer, strlen(buffer));
+    if (status < 0)
     {
-     int res_wait = strcmp(buffer,"It is the start of your turn\n");
+      printf("error while sending client message to server\n");
+    }
+   
+    int res_quit = 1;
+    while(res_quit != 0)  
+    {
+      int res_wait = 1;
      while(res_wait != 0)
      {
        bzero(buffer,256);                         
-       status = read(socketid, buffer, 255);
+       status = read(socketid, buffer, 29);
        if (status < 0) {
           perror("error while reading message from server");
           exit(1);
@@ -108,29 +105,87 @@ void main()
        printf("%s\n",buffer);
        res_wait = strcmp(buffer,"It is the start of your turn\n");
      }
-     printf("Enter first card: ");               //writes first card
-     bzero(buffer,256);
-     fgets(buffer,255,stdin);
+     status = read(socketid, buffer, 255);
+     if (status < 0) {
+       perror("error while reading message from server");
+       exit(1);
+     }
+     printf("%s\n",buffer);//read board
+
+     bool first_choice_valid = false;
+     while(!first_choice_valid)
+     {
+      printf("Enter first card: ");               //writes first card
+      bzero(buffer,256);
+      fgets(buffer,255,stdin);
+      char f = buffer[0];
+      if(f > 96 && f < 115)
+      {first_choice_valid = 1;}
+      else
+      {printf("Not a valid letter choice.\n");}
+     }
+     res_quit = strcmp(buffer,"quit\n");
+     if(res_quit == 0)
+     {
+       printf("Exiting game loop.\n");
+       break;
+     }
+
      status = write(socketid, buffer, strlen(buffer));
-     
+     if (status < 0)
+     {
+       printf("error while sending client message to server\n");
+     }
+  
+     bzero(buffer,256); 
+     status = read(socketid, buffer, 255);
+     if (status < 0) {
+       perror("error while reading message from server");
+       exit(1);
+     }
+     printf("BOARD:\n%s\n",buffer); // game board after first selection
+
+     bool second_choice_valid = false;
+      while(!second_choice_valid)
+      {
+        printf("Enter second card: ");             //writes second card
+        bzero(buffer,256);
+        fgets(buffer,255,stdin);   
+        char s = buffer[0];
+        if(s > 96 && s < 115)
+        {second_choice_valid = 1;}
+        else
+        {printf("Not a valid letter choice.\n");}
+      }
+     res_quit = strcmp(buffer,"quit\n");
+     if(res_quit == 0)
+     {
+       printf("Exiting game loop.\n");
+       break;
+     }
+     status = write(socketid, buffer, strlen(buffer));
      if (status < 0)
      {
        printf("error while sending client message to server\n");
      }
      
-     printf("Enter second card: ");             //writes second card
-     bzero(buffer2,256);
-     fgets(buffer2,255,stdin);
-     status = write(socketid, buffer2, strlen(buffer2));
-     
-     if (status < 0)
-     {
-       printf("error while sending client message to server\n");
+     bzero(buffer,256); 
+     status = read(socketid, buffer, 255);
+     if (status < 0) {
+        perror("error while reading message from server");
+        exit(1);
      }
+      printf("BOARD:\n%s\n",buffer); // game board after second selection
+     
+     bzero(buffer,256); 
+     status = read(socketid, buffer, 11);
+     if (status < 0) {
+        perror("error while reading message from server");
+        exit(1);
+     }
+      printf("Choice is: %s\n",buffer); //reads 'Correct!' or 'Incorrect!' message
     }
 
    /* this closes the socket*/
-   close(socketid);
-
-  
+   close(socketid);  
 } 
