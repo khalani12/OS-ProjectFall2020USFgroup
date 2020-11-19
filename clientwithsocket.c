@@ -109,11 +109,12 @@ void main()
          buffer3[count] = buffer[count];
          count++;
        }
+       buffer3[count] = '\0';
        res_wait = strcmp(buffer3,"It is the start of your turn");
        if(res_wait == 0)
-         printf("%s\n",buffer3);
+       {printf("%s\n",buffer3);}
        else
-         printf("%s\n",buffer);
+       {printf("%s\n",buffer);}
      }
      status = read(socketid, buffer, 255);
      if (status < 0) {

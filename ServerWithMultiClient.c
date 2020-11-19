@@ -18,7 +18,6 @@ pthread_mutex_t mutex;
 int order = 0;
 void write_board();
 struct Player{
-   int player_num;
    int points;
    bool turn;
 };struct Player p[5];
@@ -64,7 +63,7 @@ void assign_cards() {
 bool pick_two(char first, char second){
   int findex = first - 97;
   int sindex = second - 97;
-  if(card_set[findex].hidden_symbol == card_set[sindex].hidden_symbol)
+  if(card_set[findex].hidden_symbol == card_set[sindex].hidden_symbol && card_set[findex].face_symbol != 'X')
   {
     printf("Correct\n");
     card_set[findex].showing = false;
@@ -72,6 +71,7 @@ bool pick_two(char first, char second){
     card_set[findex].face_symbol = 'X';
     card_set[sindex].face_symbol = 'X';
     write_board();
+    p[order].points += 1;
     return true;
   }
   else
@@ -110,7 +110,6 @@ void write_board() {
       if(card_set[i].showing == false)
       {board_str[j] = card_set[i].face_symbol;}
       else
-      //{board_str[j] = ' ';} // if we are showing symbol instead of just not printing when a card is matched, line becomes:
       {board_str[j] = card_set[i].hidden_symbol;}
       j++;
       board_str[j] = ' ';
@@ -122,6 +121,35 @@ void write_board() {
       }
    }
 }
+
+bool check_completion()
+{
+   int i, total = 0;
+   for(i = 0; i < NUM_CARDS; i++)
+   {
+      if(card_set[i].face_symbol == 'X')
+      {total++;}
+   }
+   if(total == NUM_CARDS)
+   {return true;}
+   else
+   {return false;}
+}
+
+int find_max_points()
+{
+   int i, max_idx = 0, max = p[0].points;
+   for(i = 1; i < order; i++)
+   {
+      if(p[i].points > max)
+      {
+         max = p[i].points;
+         max_idx = i;
+      }
+   }
+   return max_idx;
+}
+
 bool check = false;
 void * handle_connection(void* p_newsockfd)
 {
@@ -143,7 +171,8 @@ void * handle_connection(void* p_newsockfd)
        printf("Client must send message \'ready\' to begin game.\n");
        read_from(newsockfd);
      }
-     while(1){
+     bool complete = check_completion();
+     while(!complete){
        int count = 0;
        if(pthread_self() == th1)  //player1
        {
@@ -216,7 +245,7 @@ void * handle_connection(void* p_newsockfd)
        bool correct_choice = pick_two(f,s); 
        pthread_mutex_unlock(&mutex);
        if(correct_choice)
-       {status = write(newsockfd, "Correct!\n", 9);}
+       {status = write(newsockfd, "Correct!  \n", 11);}
        else
        {status = write(newsockfd, "Incorrect!\n", 11);}
        card_set[f-97].showing = false;
@@ -233,7 +262,13 @@ void * handle_connection(void* p_newsockfd)
          p[0].turn = true;     //restarts the player queue
        }
        printf("%s\n", board_str);   //prints the modified board server side
+       complete = check_completion();
      }
+     int winner = find_max_points();
+     status = write(newsockfd, "Winner!   \n", 11);
+     char winner_message[18];
+     snprintf(winner_message, sizeof(winner_message), "Player %d has won!\n", winner+1);
+     status = write(newsockfd, winner_message, strlen(winner_message));
      return NULL;
 }
 
@@ -293,6 +328,7 @@ int main( int argc, char *argv[] ) {
           exit(1);
         }
         p[order].turn = true;   //sets p1's turn as on for being the first to connect
+        p[order].points = 0;
         pthread_create(&th1, &attr, *handle_connection, &newsockfd);   //creates thread function for p1
         order++;
      }
@@ -304,6 +340,7 @@ int main( int argc, char *argv[] ) {
           exit(1);
         }
         p[order].turn = false;     //sets p2's turn as not on
+        p[order].points = 0;
         pthread_create(&th2, &attr, *handle_connection, &newsockfd2);  //creates thread function for p2
         order++;
      }
@@ -315,6 +352,7 @@ int main( int argc, char *argv[] ) {
           exit(1);
         }
         p[order].turn = false;     //sets p3's turn as not on
+        p[order].points = 0;
         pthread_create(&th3, &attr, *handle_connection, &newsockfd3);  //creates thread function for p3
         order++;
      }
@@ -326,6 +364,7 @@ int main( int argc, char *argv[] ) {
           exit(1);
         }
         p[order].turn = false;     //sets p4's turn as not on
+        p[order].points = 0;
         pthread_create(&th4, &attr, *handle_connection, &newsockfd4);  //creates thread function for p4
         order++;
      }
@@ -337,6 +376,7 @@ int main( int argc, char *argv[] ) {
           exit(1);
         }
         p[order].turn = false;     //sets p5's turn as not on
+        p[order].points = 0;
         pthread_create(&th5, &attr, *handle_connection, &newsockfd5);  //creates thread function for p5
         order++;
      }
