@@ -96,14 +96,24 @@ void main()
       int res_wait = 1;
      while(res_wait != 0)
      {
+       int count = 0;
        bzero(buffer,256);                         
-       status = read(socketid, buffer, 29);
+       status = read(socketid, buffer, 39);
        if (status < 0) {
           perror("error while reading message from server");
           exit(1);
        }
-       printf("%s\n",buffer);
-       res_wait = strcmp(buffer,"It is the start of your turn\n");
+       char buffer3[256];
+       while(count < 28)
+       {
+         buffer3[count] = buffer[count];
+         count++;
+       }
+       res_wait = strcmp(buffer3,"It is the start of your turn");
+       if(res_wait == 0)
+         printf("%s\n",buffer3);
+       else
+         printf("%s\n",buffer);
      }
      status = read(socketid, buffer, 255);
      if (status < 0) {

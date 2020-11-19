@@ -189,7 +189,7 @@ void * handle_connection(void* p_newsockfd)
            count++;
          }
        }
-      char message2[255] = "It is the start of your turn\n"; //sends that its start of their turn and exits the client out of the loop they are in
+      char message2[255] = "It is the start of your turn12345678910"; //sends that its start of their turn and exits the client out of the loop they are in
       status = write(newsockfd, message2, strlen(message2));
       status = write(newsockfd, board_str, strlen(board_str));
 
