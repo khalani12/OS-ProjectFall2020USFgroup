@@ -44,7 +44,7 @@ void main()
    /* before connecting the socket we need to set up the right     	values in the different fields of the structure server_addr 
    you can check the definition of this structure on your own*/
    
-    server = gethostbyname("osnode05"); 
+    server = gethostbyname("osnode08"); 
 
    if (server == NULL)
    {
@@ -109,6 +109,7 @@ void main()
          buffer3[count] = buffer[count];
          count++;
        }
+       buffer3[28] = '\0';
        res_wait = strcmp(buffer3,"It is the start of your turn");
        if(res_wait == 0)
          printf("%s\n",buffer3);
