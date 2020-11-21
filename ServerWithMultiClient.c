@@ -10,12 +10,13 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define PORTNUM 5221       /* the port number the server will listen to*/
+#define PORTNUM 5240       /* the port number the server will listen to*/
 #define DEFAULT_PROTOCOL 0 /*constant for default protocol*/
 #define SEMKEY ((key_t)400L)
 #define NUM_CARDS 18
 
-pthread_t th1, th2, th3, th4, th5; //threads
+pthread_t th1, th2, th3, th4, th5; //threads for clients in turn based, and for reading in free for all
+pthread_t th6, th7, th8, th9, th10; //threads for writing to clients in free for all
 pthread_mutex_t mutex;
 int order = 0;
 int ready_count = 0;
@@ -72,7 +73,6 @@ bool check_completion()
         return false;
     }
 }
-
 void shuffle_symbols(char *array, int size)
 {
     srand((unsigned)time(NULL));
@@ -176,7 +176,81 @@ void write_board()
         }
     }
 }
-bool check = false;
+bool check = false; //what enables all sockets to be written to.
+void *handle_connection_sync(void *p_newsockfd) //new thread function just for the randomized mode
+{
+    int newsockfd = *((int *)p_newsockfd);
+    char buffer[256];
+    int status;
+    bzero(buffer, 256);
+    status = write(newsockfd, "Free-for-all\n", 255); //sends message of the game mode to client
+    status = write(newsockfd,"Send message \'ready\' to begin game.\n", 36);
+    
+    read_from(newsockfd); //read for the ready
+    int res_ready = strcmp(buffer2, "ready\n"); 
+    while (res_ready != 0)
+    {
+        status = write(newsockfd, "Send message \'ready\' to begin game.\n", 36);
+
+        if (status < 0)
+        {
+            perror("ERROR writing to socket");
+            exit(1);
+        }
+        printf("Client must send message \'ready\' to begin game.\n");
+        read_from(newsockfd);
+        res_ready = strcmp(buffer2, "ready\n");
+    }
+    ready_count++;
+    if (ready_count < order)  //waiting for all players
+    {
+        printf("%d out of %d players connected.\n", ready_count, order);
+        //printf("Waiting for more players...\n");
+        while (ready_count < order)
+        {
+            // *shrugs*
+        }
+    }
+    if (pthread_self() == th1) //game start
+    {
+        printf("Game Start!\n");
+    }
+    while(1)
+    {
+        char first[255]; //reads first and second card
+        char second[255]; 
+        
+        read_from(newsockfd);
+        strcpy(first, buffer2);
+        char f = first[0];
+        card_set[f - 97].showing = true;
+        write_board();
+        check = true;  //switches the write function to true where it writes to all nodes the board once
+        
+        read_from(newsockfd);
+        strcpy(second, buffer2);
+        char s = second[0];
+        card_set[s - 97].showing = true;
+        write_board();
+        check = true; //switches the write function to true where it writes to all nodes the board once
+    }
+}
+void *handle_connection_sync_write(void *p_newsockfd) //thread thats only purpose is to write to all sockets just for randomized mode
+{
+    int newsockfd = *((int *)p_newsockfd);
+    char buffer[256];
+    int status;
+    while(1)
+    {
+      if(check)
+      {
+        pthread_mutex_lock(&mutex);
+        status = write(newsockfd, board_str, strlen(board_str));
+        pthread_mutex_unlock(&mutex);
+        check = false;
+      }
+    }
+}
 void *handle_connection(void *p_newsockfd)
 {
     int newsockfd = *((int *)p_newsockfd);
@@ -332,6 +406,8 @@ void *handle_connection(void *p_newsockfd)
 
 int main(int argc, char *argv[])
 {
+    srand(time(0));
+    int num = (rand() %(2-1+1))+1; //server randomly decides what game mode it is
     int sockfd, newsockfd, portno, clilen, newsockfd2, newsockfd3, newsockfd4, newsockfd5;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
@@ -357,8 +433,7 @@ int main(int argc, char *argv[])
     }
     write_board(); //Displays flipped board on server side
     printf("%s\n", board_str);
-
-    /* First call to socket() function */
+      /* First call to socket() function */
     sockfd = socket(AF_INET, SOCK_STREAM, DEFAULT_PROTOCOL);
 
     if (sockfd < 0)
@@ -389,84 +464,174 @@ int main(int argc, char *argv[])
 
     listen(sockfd, 5);
     clilen = sizeof(cli_addr);
-    while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
+    if(num == 1) //if num one its turn based
     {
-        if (order == 0)
-        {
-            newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-            if (newsockfd < 0)
-            {
-                perror("ERROR on accept");
-                exit(1);
-            }
-            p[order].turn = true; //sets p1's turn as on for being the first to connect
-            p[order].points = 0;
-            status = write(newsockfd, "You are Player #1\n", 18);
-            pthread_create(&th1, &attr, *handle_connection, &newsockfd); //creates thread function for p1
-            order++;
-        }
-        if (order == 1)
-        {
-            newsockfd2 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-            if (newsockfd2 < 0)
-            {
-                perror("ERROR on accept");
-                exit(1);
-            }
-            p[order].turn = false;                                        //sets p2's turn as not on
-            p[order].points = 0;
-            status = write(newsockfd2, "You are Player #2\n", 18);
-            pthread_create(&th2, &attr, *handle_connection, &newsockfd2); //creates thread function for p2
-            order++;
-        }
-        if (order == 2)
-        {
-            newsockfd3 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-            if (newsockfd3 < 0)
-            {
-                perror("ERROR on accept");
-                exit(1);
-            }
-            p[order].turn = false;                                        //sets p3's turn as not on
-            p[order].points = 0;
-            status = write(newsockfd3, "You are Player #3\n", 18);
-            pthread_create(&th3, &attr, *handle_connection, &newsockfd3); //creates thread function for p3
-            order++;
-        }
-        if (order == 3)
-        {
-            newsockfd4 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-            if (newsockfd4 < 0)
-            {
-                perror("ERROR on accept");
-                exit(1);
-            }
-            p[order].turn = false;                                        //sets p4's turn as not on
-            p[order].points = 0;
-            status = write(newsockfd4, "You are Player #4\n", 18);
-            pthread_create(&th4, &attr, *handle_connection, &newsockfd4); //creates thread function for p4
-            order++;
-        }
-        if (order == 4)
-        {
-            newsockfd5 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-            if (newsockfd5 < 0)
-            {
-                perror("ERROR on accept");
-                exit(1);
-            }
-            p[order].turn = false;                                        //sets p5's turn as not on
-            p[order].points = 0;
-            status = write(newsockfd5, "You are Player #5\n", 18);
-            pthread_create(&th5, &attr, *handle_connection, &newsockfd5); //creates thread function for p5
-            order++;
-        }
+      printf("Turn Based\n");
+      while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
+      {
+          if (order == 0)
+          {
+              newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }
+              p[order].turn = true; //sets p1's turn as on for being the first to connect
+              p[order].points = 0;
+              status = write(newsockfd, "You are Player #1\n", 18);
+              pthread_create(&th1, &attr, *handle_connection, &newsockfd); //creates thread function for p1
+              order++;
+          }
+          if (order == 1)
+          {
+              newsockfd2 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd2 < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }
+              p[order].turn = false;                                        //sets p2's turn as not on
+              p[order].points = 0;
+              status = write(newsockfd2, "You are Player #2\n", 18);
+              pthread_create(&th2, &attr, *handle_connection, &newsockfd2); //creates thread function for p2
+              order++;
+          }
+          if (order == 2)
+          {
+              newsockfd3 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd3 < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }
+              p[order].turn = false;                                        //sets p3's turn as not on
+              p[order].points = 0;
+              status = write(newsockfd3, "You are Player #3\n", 18);
+              pthread_create(&th3, &attr, *handle_connection, &newsockfd3); //creates thread function for p3
+              order++;
+          }
+          if (order == 3)
+          {
+              newsockfd4 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd4 < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }
+              p[order].turn = false;                                        //sets p4's turn as not on
+              p[order].points = 0;
+              status = write(newsockfd4, "You are Player #4\n", 18);
+              pthread_create(&th4, &attr, *handle_connection, &newsockfd4); //creates thread function for p4
+              order++;
+          }
+          if (order == 4)
+          {
+              newsockfd5 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd5 < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }
+              p[order].turn = false;                                        //sets p5's turn as not on
+              p[order].points = 0;
+              status = write(newsockfd5, "You are Player #5\n", 18);
+              pthread_create(&th5, &attr, *handle_connection, &newsockfd5); //creates thread function for p5
+              order++;
+          }
+      }
+      pthread_join(th1, NULL);
+      pthread_join(th2, NULL);
+      pthread_join(th3, NULL);
+      pthread_join(th4, NULL);
+      pthread_join(th5, NULL);
     }
-    pthread_join(th1, NULL);
-    pthread_join(th2, NULL);
-    pthread_join(th3, NULL);
-    pthread_join(th4, NULL);
-    pthread_join(th5, NULL);
-
+    else //if num is 2 its random
+    {
+      printf("Free-for-all\n");
+      while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
+      {
+          if (order == 0)
+          {
+              newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }
+              p[order].points = 0;
+              status = write(newsockfd, "You are Player #1\n", 18);
+              pthread_create(&th1, &attr, *handle_connection_sync, &newsockfd); //creates thread function for p1
+              pthread_create(&th6, &attr, *handle_connection_sync_write, &newsockfd); //creates thread function for writing the board
+              order++;
+          }
+          if (order == 1)
+          {
+              newsockfd2 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd2 < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }                                     
+              p[order].points = 0;
+              status = write(newsockfd2, "You are Player #2\n", 18);
+              pthread_create(&th2, &attr, *handle_connection_sync, &newsockfd2); //creates thread function for p2
+              pthread_create(&th7, &attr, *handle_connection_sync_write, &newsockfd2); //creates thread function for writing the board
+              order++;
+          }
+          if (order == 2)
+          {
+              newsockfd3 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd3 < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }                                
+              p[order].points = 0;
+              status = write(newsockfd3, "You are Player #3\n", 18);
+              pthread_create(&th3, &attr, *handle_connection_sync, &newsockfd3); //creates thread function for p3
+              pthread_create(&th8, &attr, *handle_connection_sync_write, &newsockfd3); //creates thread function for writing the board
+              order++;
+          }
+          if (order == 3)
+          {
+              newsockfd4 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd4 < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }                                   
+              p[order].points = 0;
+              status = write(newsockfd4, "You are Player #4\n", 18);
+              pthread_create(&th4, &attr, *handle_connection_sync, &newsockfd4); //creates thread function for p4
+              pthread_create(&th9, &attr, *handle_connection_sync_write, &newsockfd4); //creates thread function for writing the board
+              order++;
+          }
+          if (order == 4)
+          {
+              newsockfd5 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+              if (newsockfd5 < 0)
+              {
+                  perror("ERROR on accept");
+                  exit(1);
+              }                                  
+              p[order].points = 0;
+              status = write(newsockfd5, "You are Player #5\n", 18);
+              pthread_create(&th5, &attr, *handle_connection_sync, &newsockfd5); //creates thread function for p5
+              pthread_create(&th10, &attr, *handle_connection_sync_write, &newsockfd5); //creates thread function for writing the board
+              order++;
+          }
+      }
+      pthread_join(th1, NULL);
+      pthread_join(th6, NULL);
+      pthread_join(th2, NULL);
+      pthread_join(th7, NULL);
+      pthread_join(th3, NULL);
+      pthread_join(th8, NULL);
+      pthread_join(th4, NULL);
+      pthread_join(th9, NULL);
+      pthread_join(th5, NULL);
+      pthread_join(th10, NULL);
+    }
     pthread_mutex_destroy(&mutex);
 }
