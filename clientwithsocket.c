@@ -15,7 +15,7 @@ on a machine. The name of this machine must be entered in the function gethostby
 
 #define PORTNUM 5221                /* the port number that the server is listening to*/
 #define DEFAULT_PROTOCOL 0          /* constant for default protocol*/
-#define SERVER_NODE_NAME "osnode04" /* UPDATE THIS STRING WITH NODE THE SERVER IS RUNNING ON */
+#define SERVER_NODE_NAME "osnode05" /* UPDATE THIS STRING WITH NODE THE SERVER IS RUNNING ON */
 
 void main()
 {
@@ -221,9 +221,8 @@ void main()
     }
 
     status = read(socketid, buffer, 18);
-    printf("***%s", buffer); //FIXME:
+    printf("\n%s\n", buffer); //FIXME:
 
     /* this closes the socket*/
     close(socketid);
-    printf("TEST\n");
 }

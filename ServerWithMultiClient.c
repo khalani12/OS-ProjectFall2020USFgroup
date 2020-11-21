@@ -10,7 +10,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define PORTNUM 5240       /* the port number the server will listen to*/
+#define PORTNUM 5221       /* the port number the server will listen to*/
 #define DEFAULT_PROTOCOL 0 /*constant for default protocol*/
 #define SEMKEY ((key_t)400L)
 #define NUM_CARDS 18
@@ -176,36 +176,8 @@ void write_board()
     }
 }
 
-bool check_completion()
-{
-   int i, total = 0;
-   for(i = 0; i < NUM_CARDS; i++)
-   {
-      if(card_set[i].face_symbol == 'X')
-      {total++;}
-   }
-   if(total == NUM_CARDS)
-   {return true;}
-   else
-   {return false;}
-}
-
-int find_max_points()
-{
-   int i, max_idx = 0, max = p[0].points;
-   for(i = 1; i < order; i++)
-   {
-      if(p[i].points > max)
-      {
-         max = p[i].points;
-         max_idx = i;
-      }
-   }
-   return max_idx;
-}
-
 bool check = false;
-void *handle_connection_sync(void *p_newsockfd)
+void *handle_connection_sync(void *p_newsockfd, void *next_sock)
 {
     int newsockfd = *((int *)p_newsockfd);
     char buffer[256];
@@ -239,6 +211,7 @@ void *handle_connection_sync(void *p_newsockfd)
             // *shrugs*
         }
     }
+    close(next_sock);
     if (pthread_self() == th1)
     {
         printf("Game Start!\n");
@@ -395,7 +368,15 @@ void *handle_connection(void *p_newsockfd)
         pthread_mutex_lock(&mutex);
         bool correct_choice = pick_two(f, s);
         pthread_mutex_unlock(&mutex);
-        if (correct_choice)
+        complete = check_completion();
+        
+        card_set[f - 97].showing = false;
+        card_set[s - 97].showing = false;
+        if (complete)
+        {
+            break;
+        }
+        else if (correct_choice)
         {
             status = write(newsockfd, "Correct!  \n", 11);
         }
@@ -403,8 +384,6 @@ void *handle_connection(void *p_newsockfd)
         {
             status = write(newsockfd, "Incorrect!\n", 11);
         }
-        card_set[f - 97].showing = false;
-        card_set[s - 97].showing = false;
         write_board();
 
         p[new_order].turn = false; //makes current players turn complete
@@ -417,11 +396,6 @@ void *handle_connection(void *p_newsockfd)
             p[0].turn = true; //restarts the player queue
         }
         printf("%s\n", board_str); //prints the modified board server side
-        complete = check_completion();
-        if (complete)
-        {
-            break;
-        }
     }
 
     int winner = find_max_points();
@@ -434,8 +408,9 @@ void *handle_connection(void *p_newsockfd)
 
 int main(int argc, char *argv[])
 {
-    srand(time(0));
-    int num = (rand() %(2-1+1))+1;
+    //srand(time(0));
+    //int num = (rand() %(2-1+1))+1;
+    char num = '\0';
     int sockfd, newsockfd, portno, clilen, newsockfd2, newsockfd3, newsockfd4, newsockfd5;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
@@ -444,6 +419,14 @@ int main(int argc, char *argv[])
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_mutex_init(&mutex, NULL);
+
+    while(num != '1' && num != '2')
+    {
+        bzero(buffer, 256);
+        printf("Turn based play (enter '1') or Free-for-all (enter '2'): ");
+        fgets(buffer, 255, stdin);
+        num = buffer[0];
+    }
 
     assign_cards(); // initializes game board IMPORTANT
 
@@ -492,7 +475,7 @@ int main(int argc, char *argv[])
 
     listen(sockfd, 5);
     clilen = sizeof(cli_addr);
-    if(num == 1)
+    if(num == '1')
     {
       printf("Turn Based\n");
       while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
@@ -568,11 +551,30 @@ int main(int argc, char *argv[])
               order++;
           }
       }
+      printf("Joining threads\n");
       pthread_join(th1, NULL);
-      pthread_join(th2, NULL);
-      pthread_join(th3, NULL);
-      pthread_join(th4, NULL);
-      pthread_join(th5, NULL);
+      close(newsockfd);
+      if(order > 1)
+      {
+          close(newsockfd2);
+          pthread_join(th2, NULL);
+      }
+      if(order > 2)
+      {
+          close(newsockfd3);
+          pthread_join(th3, NULL);
+      }
+      if(order > 3)
+      {
+          close(newsockfd4);
+          pthread_join(th4, NULL);
+      }
+      if(order > 4)
+      {
+          close(newsockfd5);
+          pthread_join(th5, NULL);
+      }
+      printf("Threads have been joined\n");
     }
     else
     {
@@ -650,16 +652,37 @@ int main(int argc, char *argv[])
               order++;
           }
       }
+      printf("Joining threads\n");
       pthread_join(th1, NULL);
       pthread_join(th6, NULL);
-      pthread_join(th2, NULL);
-      pthread_join(th7, NULL);
-      pthread_join(th3, NULL);
-      pthread_join(th8, NULL);
-      pthread_join(th4, NULL);
-      pthread_join(th9, NULL);
-      pthread_join(th5, NULL);
-      pthread_join(th10, NULL);
+      close(newsockfd);
+      if(order > 0)
+      {  
+        pthread_join(th2, NULL);
+        pthread_join(th7, NULL);
+        close(newsockfd2);
+      }
+      if(order > 1)
+      {
+        pthread_join(th3, NULL);
+        pthread_join(th8, NULL);
+        close(newsockfd3);
+      }
+      if(order > 2)
+      {
+        pthread_join(th4, NULL);
+        pthread_join(th9, NULL);
+        close(newsockfd4);
+      }
+      if(order > 3)
+      {
+        pthread_join(th5, NULL);
+        pthread_join(th10, NULL);
+        close(newsockfd5);
+      }
+      printf("Threads have been joined\n");
     }
+    printf("Exiting server\n");
+    close(sockfd);
     pthread_mutex_destroy(&mutex);
 }
