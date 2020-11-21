@@ -176,18 +176,19 @@ void write_board()
     }
 }
 
-bool check = false;
-void *handle_connection_sync(void *p_newsockfd, void *next_sock)
+bool check = false; //what enables all sockets to be written to.
+void *handle_connection_sync(void *p_newsockfd, void *next_sock) //new thread function just for the randomized mode
 {
     int newsockfd = *((int *)p_newsockfd);
     char buffer[256];
     int status;
     bzero(buffer, 256);
-    status = write(newsockfd, "Free-for-all\n", 255);
+
+    status = write(newsockfd, "Free-for-all\n", 255); //sends message of the game mode to client
     status = write(newsockfd,"Send message \'ready\' to begin game.\n", 36);
     
     read_from(newsockfd); //read for the ready
-    int res_ready = strcmp(buffer2, "ready\n");
+    int res_ready = strcmp(buffer2, "ready\n"); 
     while (res_ready != 0)
     {
         status = write(newsockfd, "Send message \'ready\' to begin game.\n", 36);
@@ -202,7 +203,7 @@ void *handle_connection_sync(void *p_newsockfd, void *next_sock)
         res_ready = strcmp(buffer2, "ready\n");
     }
     ready_count++;
-    if (ready_count < order)
+    if (ready_count < order)  //waiting for all players
     {
         printf("%d out of %d players connected.\n", ready_count, order);
         //printf("Waiting for more players...\n");
@@ -212,13 +213,14 @@ void *handle_connection_sync(void *p_newsockfd, void *next_sock)
         }
     }
     close(next_sock);
-    if (pthread_self() == th1)
+
+    if (pthread_self() == th1) //game start
     {
         printf("Game Start!\n");
     }
     while(1)
     {
-        char first[255];
+        char first[255]; //reads first and second card
         char second[255]; 
         
         read_from(newsockfd);
@@ -226,17 +228,18 @@ void *handle_connection_sync(void *p_newsockfd, void *next_sock)
         char f = first[0];
         card_set[f - 97].showing = true;
         write_board();
-        check = true;
+        check = true;  //switches the write function to true where it writes to all nodes the board once
         
         read_from(newsockfd);
         strcpy(second, buffer2);
         char s = second[0];
         card_set[s - 97].showing = true;
         write_board();
-        check = true;
+        check = true; //switches the write function to true where it writes to all nodes the board once
     }
 }
-void *handle_connection_sync_write(void *p_newsockfd)
+
+void *handle_connection_sync_write(void *p_newsockfd) //thread thats only purpose is to write to all sockets just for randomized mode
 {
     int newsockfd = *((int *)p_newsockfd);
     char buffer[256];
@@ -475,7 +478,7 @@ int main(int argc, char *argv[])
 
     listen(sockfd, 5);
     clilen = sizeof(cli_addr);
-    if(num == '1')
+    if(num == '1') //if num one its turn based
     {
       printf("Turn Based\n");
       while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
@@ -576,7 +579,7 @@ int main(int argc, char *argv[])
       }
       printf("Threads have been joined\n");
     }
-    else
+    else //if num is 2 its random
     {
       printf("Free-for-all\n");
       while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
@@ -592,7 +595,7 @@ int main(int argc, char *argv[])
               p[order].points = 0;
               status = write(newsockfd, "You are Player #1\n", 18);
               pthread_create(&th1, &attr, *handle_connection_sync, &newsockfd); //creates thread function for p1
-              pthread_create(&th6, &attr, *handle_connection_sync_write, &newsockfd);
+              pthread_create(&th6, &attr, *handle_connection_sync_write, &newsockfd); //creates thread function for writing the board
               order++;
           }
           if (order == 1)
@@ -606,7 +609,7 @@ int main(int argc, char *argv[])
               p[order].points = 0;
               status = write(newsockfd2, "You are Player #2\n", 18);
               pthread_create(&th2, &attr, *handle_connection_sync, &newsockfd2); //creates thread function for p2
-              pthread_create(&th7, &attr, *handle_connection_sync_write, &newsockfd2);
+              pthread_create(&th7, &attr, *handle_connection_sync_write, &newsockfd2); //creates thread function for writing the board
               order++;
           }
           if (order == 2)
@@ -620,7 +623,7 @@ int main(int argc, char *argv[])
               p[order].points = 0;
               status = write(newsockfd3, "You are Player #3\n", 18);
               pthread_create(&th3, &attr, *handle_connection_sync, &newsockfd3); //creates thread function for p3
-              pthread_create(&th8, &attr, *handle_connection_sync_write, &newsockfd3);
+              pthread_create(&th8, &attr, *handle_connection_sync_write, &newsockfd3); //creates thread function for writing the board
               order++;
           }
           if (order == 3)
@@ -634,7 +637,7 @@ int main(int argc, char *argv[])
               p[order].points = 0;
               status = write(newsockfd4, "You are Player #4\n", 18);
               pthread_create(&th4, &attr, *handle_connection_sync, &newsockfd4); //creates thread function for p4
-              pthread_create(&th9, &attr, *handle_connection_sync_write, &newsockfd4);
+              pthread_create(&th9, &attr, *handle_connection_sync_write, &newsockfd4); //creates thread function for writing the board
               order++;
           }
           if (order == 4)
@@ -648,7 +651,7 @@ int main(int argc, char *argv[])
               p[order].points = 0;
               status = write(newsockfd5, "You are Player #5\n", 18);
               pthread_create(&th5, &attr, *handle_connection_sync, &newsockfd5); //creates thread function for p5
-              pthread_create(&th10, &attr, *handle_connection_sync_write, &newsockfd5);
+              pthread_create(&th10, &attr, *handle_connection_sync_write, &newsockfd5); //creates thread function for writing the board
               order++;
           }
       }
