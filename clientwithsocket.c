@@ -113,7 +113,7 @@ void main()
             }
             buffer3[28] = '\0';
             
-            char buffer4[256];
+            char buffer4[256]; // buffer for potential winner string
             while (count2 < 11)
             {
                 buffer4[count2] = buffer[count2];
@@ -122,11 +122,10 @@ void main()
             buffer4[11] = '\0';
             res_wait = strcmp(buffer3, "It is the start of your turn");
             res_quit = strcmp(buffer4, "Winner!   \n");
-            printf("%s\n", buffer4);
             if (res_wait == 0)
             {printf("%s\n", buffer3);}
             else if (res_quit == 0)
-            {break;}
+            {break;} //other player won :(
             else
             {printf("%s\n", buffer);}
         }
