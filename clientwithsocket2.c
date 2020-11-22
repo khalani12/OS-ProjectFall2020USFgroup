@@ -14,7 +14,7 @@ on a machine. The name of this machine must be entered in the function gethostby
 #include <stdbool.h>
 #include <pthread.h>
 
-#define PORTNUM 5307                /* the port number that the server is listening to*/
+#define PORTNUM 5308                /* the port number that the server is listening to*/
 #define DEFAULT_PROTOCOL 0          /* constant for default protocol*/
 #define SERVER_NODE_NAME "osnode05" /* UPDATE THIS STRING WITH NODE THE SERVER IS RUNNING ON */
 pthread_t th1, th2;
@@ -34,7 +34,7 @@ void *listen_connection(void *p_newsockfd) //thread function just for reading **
       bzero(buffer, 256);
       status = read(newsockfd, buffer, 255);
       printf("%s",buffer);
-      int res = strcmp(buffer,"Taken\n");
+      int res = strcmp(buffer,"Taken\n"); //this is where im trying to make it realize the symbol is taken
       if(res == 0)
       {
         taken = true;
@@ -88,10 +88,9 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
             printf("Enter first card\n");
             count++;
           }
-          first_check = true;
+          first_check = true; //enables first print
           bzero(buffer, 256);
           fgets(buffer, 255, stdin);
-          printf("HELLO\n");
           f = buffer[0];
           if (f > 96 && f < 115)
           {
@@ -102,10 +101,10 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
               printf("Not a valid letter choice.\n");
           }
       }
+      second_check = true; //enables 2nd print
       pthread_mutex_lock(&mutex);
       status = write(newsockfd, buffer, strlen(buffer)); //protected write for first client to enter in their card and modifies the board
       pthread_mutex_unlock(&mutex);
-      while()
       first_check = false;
       if (status < 0)
       {
@@ -117,7 +116,6 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
           //printf("Enter second card: \n");
           bzero(buffer, 256);
           fgets(buffer, 255, stdin);
-          printf("FROM DOWN TOWN\n");
           char s = buffer[0];
           if (s > 96 && s < 115 && f != s)
           {
@@ -128,8 +126,8 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
               printf("Not a valid letter choice.\n");
           }
       }
-      third_check = true;
-      second_check = false;
+      third_check = true; //prevents 1st print to early
+      second_check = false; //prevents 2nd print to early
       pthread_mutex_lock(&mutex);
       status = write(newsockfd, buffer, strlen(buffer)); //protected write for first client to enter in their card and modifies the board
       pthread_mutex_unlock(&mutex);

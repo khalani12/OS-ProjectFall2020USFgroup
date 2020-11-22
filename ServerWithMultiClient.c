@@ -10,7 +10,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define PORTNUM 5307       /* the port number the server will listen to*/
+#define PORTNUM 5308       /* the port number the server will listen to*/
 #define DEFAULT_PROTOCOL 0 /*constant for default protocol*/
 #define SEMKEY ((key_t)400L)
 #define NUM_CARDS 18
@@ -229,7 +229,7 @@ void *handle_connection_sync(void *p_newsockfd) //new thread function just for t
           f = first[0];
           if(card_set[f-97].showing)
           {
-            bzero(buffer,256);
+            bzero(buffer,256);  //writes taken if board symbol is showing
             char *message = "Taken\n";
             status = write(newsockfd, message, strlen(message));
           }
@@ -253,7 +253,7 @@ void *handle_connection_sync(void *p_newsockfd) //new thread function just for t
           s = second[0];
           if(card_set[s-97].showing)
           {
-            bzero(buffer,256);
+            bzero(buffer,256);  //writes taken if board symbol is showing
             char *message = "Taken\n";
             status = write(newsockfd, message, strlen(message));
           }
