@@ -20,13 +20,8 @@ on a machine. The name of this machine must be entered in the function gethostby
 pthread_t th1, th2;
 pthread_mutex_t mutex;
 bool first_check = false;
-<<<<<<< HEAD
-bool second_check = false; //all these global bools was me and Al trying to figure out how to print first and second card repeatidly
-void *listen_connection(void *p_newsockfd) //thread function just for reading **FIX ME** Don't know how to make it print out the things in proper order
-=======
 bool second_check = false;
 void *listen_connection(void *p_newsockfd)
->>>>>>> dbcf550b1930b478f2aef96d87b68e403fc2d35e
 {
   int newsockfd = *((int *)p_newsockfd);
   char buffer[256];
@@ -47,11 +42,7 @@ void *listen_connection(void *p_newsockfd)
       printf("\n%s",buffer);
   }
 }
-<<<<<<< HEAD
-void *write_connection(void *p_newsockfd) //thread function for writing mainly
-=======
 void *write_connection(void *p_newsockfd)
->>>>>>> dbcf550b1930b478f2aef96d87b68e403fc2d35e
 {
   int newsockfd = *((int *)p_newsockfd);
   char buffer[256];
@@ -76,11 +67,7 @@ void *write_connection(void *p_newsockfd)
       int res = 1;
       char f;
       bool first_choice_valid = false;
-<<<<<<< HEAD
-      while (!first_choice_valid) //first card,**NOTE** we want it to print out again after each time a new read happens which is the difficult part
-=======
       while (!first_choice_valid)
->>>>>>> dbcf550b1930b478f2aef96d87b68e403fc2d35e
       {
             printf("Enter first card: ");
             first_check = true;
@@ -98,22 +85,14 @@ void *write_connection(void *p_newsockfd)
       }
       first_check = false;
       pthread_mutex_lock(&mutex);
-<<<<<<< HEAD
-      status = write(newsockfd, buffer, strlen(buffer)); //protected write for first client to enter in their card and modifies the board
-=======
       status = write(newsockfd, buffer, strlen(buffer));
->>>>>>> dbcf550b1930b478f2aef96d87b68e403fc2d35e
       pthread_mutex_unlock(&mutex);
       if (status < 0)
       {
           printf("error while sending client message to server\n");
       }
       bool second_choice_valid = false;
-<<<<<<< HEAD
-      while (!second_choice_valid) //second card,**NOTE** we want it to print out again after each time a new read happens which is the difficult part
-=======
       while (!second_choice_valid)
->>>>>>> dbcf550b1930b478f2aef96d87b68e403fc2d35e
       {
             printf("Enter second card: ");
             second_check = true;
@@ -131,11 +110,7 @@ void *write_connection(void *p_newsockfd)
       }
       second_check = false;
       pthread_mutex_lock(&mutex);
-<<<<<<< HEAD
-      status = write(newsockfd, buffer, strlen(buffer)); //protected write for first client to enter in their card and modifies the board
-=======
       status = write(newsockfd, buffer, strlen(buffer));
->>>>>>> dbcf550b1930b478f2aef96d87b68e403fc2d35e
       pthread_mutex_unlock(&mutex);
       if (status < 0)
       {
@@ -203,11 +178,7 @@ void main()
 
     printf("connected client socket to the server socket \n");
     
-<<<<<<< HEAD
-    pthread_create(&th1, &attr, *write_connection, &socketid); //creates both threads, one for writing and the other for reading
-=======
     pthread_create(&th1, &attr, *write_connection, &socketid);
->>>>>>> dbcf550b1930b478f2aef96d87b68e403fc2d35e
     pthread_create(&th2, &attr, *listen_connection, &socketid);
     
     pthread_join(th1, NULL);

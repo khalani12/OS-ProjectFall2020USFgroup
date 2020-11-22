@@ -96,7 +96,8 @@ void main()
         int res_wait = 1;
         while (res_wait != 0)
         {
-            int count = 0;
+            int count1 = 0;
+            int count2 = 0;
             bzero(buffer, 256);
             status = read(socketid, buffer, 39);
             if (status < 0)
@@ -105,18 +106,32 @@ void main()
                 exit(1);
             }
             char buffer3[256];
-            while (count < 28)
+            while (count1 < 28)
             {
-                buffer3[count] = buffer[count];
-                count++;
+                buffer3[count1] = buffer[count1];
+                count1++;
             }
             buffer3[28] = '\0';
+            
+            char buffer4[256];
+            while (count2 < 11)
+            {
+                buffer4[count2] = buffer[count2];
+                count2++;
+            }
+            buffer4[11] = '\0';
             res_wait = strcmp(buffer3, "It is the start of your turn");
+            res_quit = strcmp(buffer4, "Winner!   \n");
+            printf("%s\n", buffer4);
             if (res_wait == 0)
-                printf("%s\n", buffer3);
+            {printf("%s\n", buffer3);}
+            else if (res_quit == 0)
+            {break;}
             else
-                printf("%s\n", buffer);
+            {printf("%s\n", buffer);}
         }
+        if(res_quit == 0)
+        {break;}
         status = read(socketid, buffer, 255);
         if (status < 0)
         {
@@ -142,14 +157,6 @@ void main()
                 printf("Not a valid letter choice.\n");
             }
         }
-        /*
-        res_quit = strcmp(buffer, "quit\n");
-        if (res_quit == 0)
-        {
-            printf("Exiting game loop.\n");
-            break;
-        }
-        //*/
 
         status = write(socketid, buffer, strlen(buffer));
         if (status < 0)
@@ -158,7 +165,7 @@ void main()
         }
 
         bzero(buffer, 256);
-        status = read(socketid, buffer, 255);
+        status = read(socketid, buffer, 39);
         if (status < 0)
         {
             perror("error while reading message from server");
@@ -182,14 +189,6 @@ void main()
                 printf("Not a valid letter choice.\n");
             }
         }
-        /*
-        res_quit = strcmp(buffer, "quit\n");
-        if (res_quit == 0)
-        {
-            printf("Exiting game loop.\n");
-            break;
-        }
-        //*/
 
         status = write(socketid, buffer, strlen(buffer));
         if (status < 0)
@@ -198,7 +197,7 @@ void main()
         }
 
         bzero(buffer, 256);
-        status = read(socketid, buffer, 255);
+        status = read(socketid, buffer, 39);
         if (status < 0)
         {
             perror("error while reading message from server");
@@ -221,7 +220,7 @@ void main()
     }
 
     status = read(socketid, buffer, 18);
-    printf("\n%s\n", buffer); //FIXME:
+    printf("\n%s\n", buffer);//prints winner message
 
     /* this closes the socket*/
     close(socketid);
