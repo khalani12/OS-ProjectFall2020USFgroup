@@ -10,7 +10,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define PORTNUM 5262       /* the port number the server will listen to*/
+#define PORTNUM 5307       /* the port number the server will listen to*/
 #define DEFAULT_PROTOCOL 0 /*constant for default protocol*/
 #define SEMKEY ((key_t)400L)
 #define NUM_CARDS 18
@@ -217,20 +217,80 @@ void *handle_connection_sync(void *p_newsockfd) //new thread function just for t
     }
     while(1)
     {
-        char first[255]; //reads first and second card
+        bool wrong = true;
+        char first[255]; 
         char second[255]; 
-        read_from(newsockfd);
-        strcpy(first, buffer2);
-        char f = first[0];
+        char f;
+        char s;
+        while(wrong)
+        {
+          read_from(newsockfd);
+          strcpy(first, buffer2);
+          f = first[0];
+          if(card_set[f-97].showing)
+          {
+            bzero(buffer,256);
+            char *message = "Taken\n";
+            status = write(newsockfd, message, strlen(message));
+          }
+          else
+          {
+            wrong = false;
+          }
+        }
+        
+        pthread_mutex_lock(&mutex);
         card_set[f - 97].showing = true;
         write_board();
+        pthread_mutex_unlock(&mutex);
+        
+        wrong = true;
         check = true;  //switches the write function to true where it writes to all nodes the board once
-        read_from(newsockfd);
-        strcpy(second, buffer2);
-        char s = second[0];
+        while(wrong)
+        {
+          read_from(newsockfd);
+          strcpy(second, buffer2);
+          s = second[0];
+          if(card_set[s-97].showing)
+          {
+            bzero(buffer,256);
+            char *message = "Taken\n";
+            status = write(newsockfd, message, strlen(message));
+          }
+          else
+          {
+            wrong = false;
+          }
+        }
+        
+        pthread_mutex_lock(&mutex);
         card_set[s - 97].showing = true;
         write_board();
+        pthread_mutex_unlock(&mutex);
+        
         check = true; //switches the write function to true where it writes to all nodes the board once
+        
+        pthread_mutex_lock(&mutex);
+        bool correct_choice = pick_two(f, s);
+        pthread_mutex_unlock(&mutex);
+        if (correct_choice)
+        {
+            status = write(newsockfd, "Correct!  \n", 11);
+        }
+        else
+        {
+            status = write(newsockfd, "Incorrect!\n", 11);
+        }
+        card_set[f - 97].showing = false;
+        card_set[s - 97].showing = false;
+        write_board();
+        
+        
+        bool complete = check_completion();
+        if (complete)
+        {
+            break;
+        }
     }
 }
 void *handle_connection_sync_write(void *p_newsockfd) //thread thats only purpose is to write to all sockets just for randomized mode
@@ -556,7 +616,7 @@ int main(int argc, char *argv[])
                   exit(1);
               }
               p[order].points = 0;
-              status = write(newsockfd, "You are Player #1", 18);
+              status = write(newsockfd, "You are Player #1\n", 18);
               pthread_create(&th1, &attr, *handle_connection_sync, &newsockfd); //creates thread function for p1
               pthread_create(&th6, &attr, *handle_connection_sync_write, &newsockfd); //creates thread function for writing the board
               order++;
@@ -570,7 +630,7 @@ int main(int argc, char *argv[])
                   exit(1);
               }                                     
               p[order].points = 0;
-              status = write(newsockfd2, "You are Player #2", 18);
+              status = write(newsockfd2, "You are Player #2\n", 18);
               pthread_create(&th2, &attr, *handle_connection_sync, &newsockfd2); //creates thread function for p2
               pthread_create(&th7, &attr, *handle_connection_sync_write, &newsockfd2); //creates thread function for writing the board
               order++;

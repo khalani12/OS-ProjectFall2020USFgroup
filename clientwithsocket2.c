@@ -14,15 +14,15 @@ on a machine. The name of this machine must be entered in the function gethostby
 #include <stdbool.h>
 #include <pthread.h>
 
-#define PORTNUM 5262                /* the port number that the server is listening to*/
+#define PORTNUM 5307                /* the port number that the server is listening to*/
 #define DEFAULT_PROTOCOL 0          /* constant for default protocol*/
 #define SERVER_NODE_NAME "osnode05" /* UPDATE THIS STRING WITH NODE THE SERVER IS RUNNING ON */
 pthread_t th1, th2;
 pthread_mutex_t mutex;
 bool first_check = false;
 bool second_check = false; //all these global bools was me and Al trying to figure out how to print first and second card repeatidly
-bool first2_check = false;
-bool second2_check = false;
+bool third_check = false;
+bool taken = false;
 void *listen_connection(void *p_newsockfd) //thread function just for reading **FIX ME** Don't know how to make it print out the things in proper order
 {
   int newsockfd = *((int *)p_newsockfd);
@@ -34,13 +34,25 @@ void *listen_connection(void *p_newsockfd) //thread function just for reading **
       bzero(buffer, 256);
       status = read(newsockfd, buffer, 255);
       printf("%s",buffer);
-      if(first_check && !second_check)
+      int res = strcmp(buffer,"Taken\n");
+      if(res == 0)
+      {
+        taken = true;
+        printf("Enter first card\n");
+      }
+      if(first_check && !second_check && !third_check)
       {
         printf("Enter first card\n");
       }
-      if(second_check)
+      if(second_check && !taken)
       {
         printf("Enter second card\n");
+        third_check = true;
+      }
+      if(third_check)
+      {
+        //printf("\n");
+        third_check = false;
       }
   }
 }
@@ -71,28 +83,29 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
       bool first_choice_valid = false;
       while (!first_choice_valid) //first card,**NOTE** we want it to print out again after each time a new read happens which is the difficult part
       {
-            if(count == 0)
-            {
-              printf("Enter first card: ");
-              count++;
-            }
-            first_check = true;
-            bzero(buffer, 256);
-            fgets(buffer, 255, stdin);
-            f = buffer[0];
-            if (f > 96 && f < 115)
-            {
-                first_choice_valid = 1;
-            }
-            else
-            {
-                printf("Not a valid letter choice.\n");
-            }
+          if(count == 0)
+          {
+            printf("Enter first card\n");
+            count++;
+          }
+          first_check = true;
+          bzero(buffer, 256);
+          fgets(buffer, 255, stdin);
+          printf("HELLO\n");
+          f = buffer[0];
+          if (f > 96 && f < 115)
+          {
+              first_choice_valid = 1;
+          }
+          else
+          {
+              printf("Not a valid letter choice.\n");
+          }
       }
-      second_check = true;
       pthread_mutex_lock(&mutex);
       status = write(newsockfd, buffer, strlen(buffer)); //protected write for first client to enter in their card and modifies the board
       pthread_mutex_unlock(&mutex);
+      while()
       first_check = false;
       if (status < 0)
       {
@@ -101,19 +114,21 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
       bool second_choice_valid = false;
       while (!second_choice_valid) //second card,**NOTE** we want it to print out again after each time a new read happens which is the difficult part
       {
-            //printf("Enter second card: \n");
-            bzero(buffer, 256);
-            fgets(buffer, 255, stdin);
-            char s = buffer[0];
-            if (s > 96 && s < 115 && f != s)
-            {
-                second_choice_valid = 1;
-            }
-            else
-            {
-                printf("Not a valid letter choice.\n");
-            }
+          //printf("Enter second card: \n");
+          bzero(buffer, 256);
+          fgets(buffer, 255, stdin);
+          printf("FROM DOWN TOWN\n");
+          char s = buffer[0];
+          if (s > 96 && s < 115 && f != s)
+          {
+              second_choice_valid = 1;
+          }
+          else
+          {
+              printf("Not a valid letter choice.\n");
+          }
       }
+      third_check = true;
       second_check = false;
       pthread_mutex_lock(&mutex);
       status = write(newsockfd, buffer, strlen(buffer)); //protected write for first client to enter in their card and modifies the board
@@ -121,8 +136,7 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
       if (status < 0)
       {
           printf("error while sending client message to server\n");
-      }
-      
+      }    
      }
 }
 
