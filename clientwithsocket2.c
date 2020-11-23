@@ -22,7 +22,9 @@ pthread_mutex_t mutex;
 bool first_check = false;
 bool second_check = false; //all these global bools was me and Al trying to figure out how to print first and second card repeatidly
 bool third_check = false;
+bool not_taken = true;
 bool taken = false;
+bool reading = true;
 void *listen_connection(void *p_newsockfd) //thread function just for reading **FIX ME** Don't know how to make it print out the things in proper order
 {
   int newsockfd = *((int *)p_newsockfd);
@@ -30,30 +32,40 @@ void *listen_connection(void *p_newsockfd) //thread function just for reading **
   int status;
   int count = 0;
   while(1)
-  {
-      bzero(buffer, 256);
-      status = read(newsockfd, buffer, 255);
-      printf("%s",buffer);
-      int res = strcmp(buffer,"Taken\n"); //this is where im trying to make it realize the symbol is taken
-      if(res == 0)
-      {
-        taken = true;
-        printf("Enter first card\n");
-      }
-      if(first_check && !second_check && !third_check)
-      {
-        printf("Enter first card\n");
-      }
-      if(second_check && !taken)
-      {
-        printf("Enter second card\n");
-        third_check = true;
-      }
-      if(third_check)
-      {
-        //printf("\n");
-        third_check = false;
-      }
+  {  
+        bzero(buffer, 256);
+        status = read(newsockfd, buffer, 255);     
+        int res = strcmp(buffer,"Taken\n"); //this is where im trying to make it realize the symbol is taken
+        int res2 = strcmp(buffer,"Not Taken\n");
+        if(res == 0)
+        {
+          taken = true;
+          printf("%s",buffer); 
+        }
+        else if(res2 == 0)
+        {
+          taken = false; 
+          reading = false;
+          //printf("%s",buffer); 
+        }
+        else
+        {
+          printf("%s",buffer); 
+        }
+        if(first_check && !second_check && !third_check)
+        {
+          printf("Enter first card\n");
+        }
+        if(second_check)
+        {
+          printf("Enter second card\n");
+          third_check = true;
+        }
+        if(third_check)
+        {
+          //printf("\n");
+          third_check = false;
+        }
   }
 }
 void *write_connection(void *p_newsockfd) //thread function for writing mainly
@@ -83,6 +95,8 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
       bool first_choice_valid = false;
       while (!first_choice_valid) //first card,**NOTE** we want it to print out again after each time a new read happens which is the difficult part
       {
+          reading = true;
+          taken = false;
           if(count == 0)
           {
             printf("Enter first card\n");
@@ -100,12 +114,23 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
           {
               printf("Not a valid letter choice.\n");
           }
+          //pthread_mutex_lock(&mutex);//protected write for first client to enter in their card and modifies the board
+          status = write(newsockfd, buffer, strlen(buffer)); 
+          //pthread_mutex_unlock(&mutex);  
+          while(reading)
+          {
+            first_check = false;
+            if(taken)
+            {
+              first_choice_valid=0;
+              reading = false;
+              first_check = true;
+            }
+          }
       }
       second_check = true; //enables 2nd print
-      pthread_mutex_lock(&mutex);
-      status = write(newsockfd, buffer, strlen(buffer)); //protected write for first client to enter in their card and modifies the board
-      pthread_mutex_unlock(&mutex);
       first_check = false;
+      reading = true;
       if (status < 0)
       {
           printf("error while sending client message to server\n");
@@ -113,6 +138,8 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
       bool second_choice_valid = false;
       while (!second_choice_valid) //second card,**NOTE** we want it to print out again after each time a new read happens which is the difficult part
       {
+          reading = true;
+          taken = false;
           //printf("Enter second card: \n");
           bzero(buffer, 256);
           fgets(buffer, 255, stdin);
@@ -125,19 +152,28 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
           {
               printf("Not a valid letter choice.\n");
           }
+          status = write(newsockfd, buffer, strlen(buffer));
+          while(reading)
+          {
+            second_check = false;
+            if(taken)
+            {
+              second_choice_valid=0;
+              reading = false;
+              second_check = true;
+            }
+          }
       }
       third_check = true; //prevents 1st print to early
       second_check = false; //prevents 2nd print to early
-      pthread_mutex_lock(&mutex);
-      status = write(newsockfd, buffer, strlen(buffer)); //protected write for first client to enter in their card and modifies the board
-      pthread_mutex_unlock(&mutex);
+      //pthread_mutex_lock(&mutex); //protected write for first client to enter in their card and modifies the board
+     // pthread_mutex_unlock(&mutex);
       if (status < 0)
       {
           printf("error while sending client message to server\n");
       }    
      }
 }
-
 void main()
 {
     int port;
