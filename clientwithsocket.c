@@ -389,4 +389,5 @@ void main()
 
     /* this closes the socket*/
     close(socketid);
+    exit(0);
 }
