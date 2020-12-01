@@ -13,6 +13,7 @@ on a machine. The name of this machine must be entered in the function gethostby
 #include <netdb.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <gtk/gtk.h>
 
 #define PORTNUM 5252                /* the port number that the server is listening to*/
 #define DEFAULT_PROTOCOL 0          /* constant for default protocol*/
@@ -163,8 +164,41 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
      }
 }
 
+static void add_to_buffer(GtkWidget *widget, gpointer data)
+{
+    strcpy(data, "ready\n");
+}
 
-void main()
+static void activate (GtkApplication* app, gpointer user_data)
+{
+  GtkWidget *window;
+  GtkWidget *button;
+  GtkWidget *button_box;
+  GtkWidget *text;
+  GtkWidget *grid;
+
+  window = gtk_application_window_new (app);
+  gtk_window_set_title (GTK_WINDOW (window), "Ready Window");
+  gtk_window_set_default_size (GTK_WINDOW (window), 250, 75);
+
+  grid = gtk_grid_new();
+  gtk_container_add(GTK_CONTAINER(window), grid);
+
+  text = gtk_label_new("Click \'Ready\' button to begin game.");
+  gtk_grid_attach(GTK_GRID(grid), text, 1, 0, 1, 1);
+  
+  button_box = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
+  button = gtk_button_new_with_label("Ready");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_container_add(GTK_CONTAINER(button_box), button);
+
+  gtk_grid_attach (GTK_GRID (grid), button_box, 0, 1, 2, 1);
+
+  gtk_widget_show_all (window);
+}
+
+void main(int argc, char *argv[])
 {
     int port;
     int socketid;     /*will hold the id of the socket created*/
@@ -221,21 +255,28 @@ void main()
     bzero(buffer, 256);
     status = read(socketid, buffer, 13);
     printf("%s", buffer);
-    char * game_mode;
+    char game_mode[255];
     strcpy(game_mode,buffer);  //reads the game mode type
-
     bzero(buffer, 256);
     status = read(socketid, buffer, 18); //reads the player # and prints it
     printf("%s", buffer);
-    printf("Send message \'ready\' to begin game.\n", 36);
+    printf("Displaying window...\n", 36);
     int res = 1;
-    while (res != 0)
-    {
-        bzero(buffer, 256); //starts socket
-        fgets(buffer, 255, stdin);
+    
+    GtkApplication *app;
+    app = gtk_application_new("OS.card.game", G_APPLICATION_FLAGS_NONE);
+    g_signal_connect(app, "activate", G_CALLBACK (activate), &buffer);
 
-        res = strcmp(buffer, "ready\n"); // ready check
-    }
+    //while (res != 0)
+    //{
+    bzero(buffer, 256); //starts socket
+    //fgets(buffer, 255, stdin);
+
+    status = g_application_run (G_APPLICATION (app), argc, argv);
+    res = strcmp(buffer, "ready\n"); // ready check
+    //}
+    g_object_unref(app);
+
     status = write(socketid, buffer, strlen(buffer));
     if (status < 0)
     {
