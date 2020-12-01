@@ -11,12 +11,12 @@
 #include <time.h>
 #include <stdbool.h>
 
- #define PORTNUM 5252       /* the port number the server will listen to*/
-#define DEFAULT_PROTOCOL 0 /*constant for default protocol*/
+#define PORTNUM 5239       /* the port number the server will listen to*/
+#define DEFAULT_PROTOCOL 0 /* constant for default protocol */
 #define SEMKEY ((key_t)400L)
 #define NUM_CARDS 18
 
-pthread_t th1, th2, th3, th4, th5; //threads for clients in turn based, and for reading in free for all
+pthread_t th1, th2, th3, th4, th5;  //threads for clients in turn based, and for reading in free for all
 pthread_t th6, th7, th8, th9, th10; //threads for writing to clients in free for all
 pthread_mutex_t mutex;
 int order = 0;
@@ -41,15 +41,34 @@ struct Card
 };
 struct Card card_set[NUM_CARDS];
 
-struct two_sockets{
+struct two_sockets
+{
     int p_newsockfd;
     int next_sock;
 };
 
+//char score_str[256];
+/* Format
+Player #1: 00
+Player #2: 00
+Player #3: 00
+Player #4: 00
+Player #5: 00
+//*/
+void print_scores()
+{
+    //memset(&score_str[0], 0, sizeof(score_str));
+    int i;
+    for (i = 0; i < order; i++)
+    {
+        printf("Player #%d: %02d\n", (p[i].player_num), p[i].points);
+    }
+}
+
 int find_max_points()
 {
     int i, max_idx = 0, max = p[0].points;
-    for (i = 1; i < order; i++)
+    for (i = 1; i < 5; i++)
     {
         if (p[i].points > max)
         {
@@ -79,6 +98,7 @@ bool check_completion()
         return false;
     }
 }
+
 void shuffle_symbols(char *array, int size)
 {
     srand((unsigned)time(NULL));
@@ -111,12 +131,11 @@ void assign_cards()
     }
 }
 
-bool pick_two(char first, char second)
+bool pick_two(char first, char second, int player)
 {
     int findex = first - 97;
     int sindex = second - 97;
-    if (card_set[findex].hidden_symbol == card_set[sindex].hidden_symbol
-        && card_set[findex].face_symbol != 'X')
+    if (card_set[findex].hidden_symbol == card_set[sindex].hidden_symbol && card_set[findex].face_symbol != 'X')
     {
         printf("Correct\n");
         card_set[findex].showing = false;
@@ -124,7 +143,8 @@ bool pick_two(char first, char second)
         card_set[findex].face_symbol = 'X';
         card_set[sindex].face_symbol = 'X';
         write_board();
-        p[order].points += 1;
+        // p[order].points += 1;
+        p[player].points += 1;
         return true;
     }
     else
@@ -181,7 +201,7 @@ void write_board()
         }
     }
 }
-bool check = false; //what enables all sockets to be written to.
+bool check = false;                             //what enables all sockets to be written to.
 void *handle_connection_sync(void *socket_pack) //new thread function just for the randomized mode
 {
     struct two_sockets *socks = (struct two_sockets *)socket_pack; //sock packet stuff
@@ -191,11 +211,13 @@ void *handle_connection_sync(void *socket_pack) //new thread function just for t
     int next_socket = *((int *)sock2);
     char buffer[256];
     int status;
+    int player;
+
     bzero(buffer, 256);
     //status = write(newsockfd, "Free-for-all\n", 255); //sends message of the game mode to client
     //status = write(newsockfd,"Send message \'ready\' to begin game.\n", 36);
     read_from(newsockfd); //read for the ready
-    printf("%s",buffer);
+    printf("%s", buffer);
     int res_ready = strcmp(buffer2, "ready\n");
     while (res_ready != 0)
     {
@@ -211,7 +233,7 @@ void *handle_connection_sync(void *socket_pack) //new thread function just for t
         res_ready = strcmp(buffer2, "ready\n");
     }
     ready_count++;
-    if (ready_count < order)  //waiting for all players
+    if (ready_count < order) //waiting for all players
     {
         printf("%d out of %d players connected.\n", ready_count, order);
         //printf("Waiting for more players...\n");
@@ -220,26 +242,30 @@ void *handle_connection_sync(void *socket_pack) //new thread function just for t
             // *shrugs*
         }
     }
-     if((pthread_self() == th1 && order == 1) || (pthread_self() == th2 && order == 2) ||
-       (pthread_self() == th3 && order == 3) || (pthread_self() == th4 && order == 4) ||
-       (pthread_self() == th5 && order == 5)) 
-    {   
+    if ((pthread_self() == th1 && order == 1) || (pthread_self() == th2 && order == 2) ||
+        (pthread_self() == th3 && order == 3) || (pthread_self() == th4 && order == 4) ||
+        (pthread_self() == th5 && order == 5))
+    {
         char buffyyyy[2] = "\0";
         struct sockaddr_in serv_addr;
         char *host_addr = "127.0.0.1";
         int self_sock = socket(AF_INET, SOCK_STREAM, 0);
-        if(status < 0)
-        {printf("Error : Could not create socket \n");}  
+        if (status < 0)
+        {
+            printf("Error : Could not create socket \n");
+        }
 
-        memset(&serv_addr, 0, sizeof(serv_addr)); 
+        memset(&serv_addr, 0, sizeof(serv_addr));
 
         serv_addr.sin_family = AF_INET;
         serv_addr.sin_port = htons(PORTNUM);
         serv_addr.sin_addr.s_addr = inet_addr(host_addr);
         status = connect(self_sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
         if (status < 0)
-        {printf(" error in connecting \n");}
-        
+        {
+            printf(" error in connecting \n");
+        }
+
         status = write(newsockfd, buffyyyy, strlen(buffyyyy));
         //status = shutdown(next_socket, SHUT_RD);
         close(next_socket);
@@ -247,72 +273,89 @@ void *handle_connection_sync(void *socket_pack) //new thread function just for t
     if (pthread_self() == th1) //game start
     {
         printf("Game Start!\n");
+        player = 0;
     }
-    while(1)
+    else if (pthread_self() == th2) //game start
+    {
+        player = 1;
+    }
+    else if (pthread_self() == th3) //game start
+    {
+        player = 2;
+    }
+    else if (pthread_self() == th4) //game start
+    {
+        player = 3;
+    }
+    else if (pthread_self() == th5) //game start
+    {
+        player = 4;
+    }
+    while (1)
     {
         bool wrong = true;
-        char first[255]; 
-        char second[255]; 
+        char first[255];
+        char second[255];
         char f;
         char s;
-        while(wrong) //wrong loop which exists if choice is not taken
+        while (wrong) //wrong loop which exists if choice is not taken
         {
-          read_from(newsockfd); //takes in first card
-          strcpy(first, buffer2);
-          f = first[0];
-          if(card_set[f-97].showing || card_set[f-97].face_symbol == 'X')
-          {
-            bzero(buffer,256);  //writes taken if board symbol is showing
-            char *message = "Taken\n";
-            status = write(newsockfd, message, strlen(message));
-          }
-          else
-          {
-            bzero(buffer,256);  //writes taken if board symbol is showing
-            char *message = "Not Taken\n";
-            status = write(newsockfd, message, strlen(message));
-            wrong = false;
-          }
+            read_from(newsockfd); //takes in first card
+            strcpy(first, buffer2);
+            f = first[0];
+            if (card_set[f - 97].showing || card_set[f - 97].face_symbol == 'X')
+            {
+                bzero(buffer, 256); //writes taken if board symbol is showing
+                char *message = "Taken\n";
+                status = write(newsockfd, message, strlen(message));
+            }
+            else
+            {
+                bzero(buffer, 256); //writes taken if board symbol is showing
+                char *message = "Not Taken\n";
+                status = write(newsockfd, message, strlen(message));
+                wrong = false;
+            }
         }
-        
+
         pthread_mutex_lock(&mutex); //modifies the board
         card_set[f - 97].showing = true;
         write_board();
         pthread_mutex_unlock(&mutex);
-        
+
         wrong = true;
-        check = true;  //switches the write function to true where it writes to all nodes the board once
-        while(wrong) //wrong loop which exists if choice is not taken
+        check = true; //switches the write function to true where it writes to all nodes the board once
+        while (wrong) //wrong loop which exists if choice is not taken
         {
-          read_from(newsockfd); //takes in second card
-          strcpy(second, buffer2);
-          s = second[0];
-          if(card_set[s-97].showing || card_set[f-97].face_symbol == 'X')
-          {
-            bzero(buffer,256);  //writes taken if board symbol is showing
-            char *message = "Taken\n";
-            status = write(newsockfd, message, strlen(message));
-          }
-          else
-          {
-            bzero(buffer,256);  //writes taken if board symbol is showing
-            char *message = "Not Taken\n";
-            status = write(newsockfd, message, strlen(message));
-            wrong = false;
-          }
+            read_from(newsockfd); //takes in second card
+            strcpy(second, buffer2);
+            s = second[0];
+            if (card_set[s - 97].showing || card_set[f - 97].face_symbol == 'X')
+            {
+                bzero(buffer, 256); //writes taken if board symbol is showing
+                char *message = "Taken\n";
+                status = write(newsockfd, message, strlen(message));
+            }
+            else
+            {
+                bzero(buffer, 256); //writes taken if board symbol is showing
+                char *message = "Not Taken\n";
+                status = write(newsockfd, message, strlen(message));
+                wrong = false;
+            }
         }
-        
+
         pthread_mutex_lock(&mutex);
         card_set[s - 97].showing = true; //modifies the board
         write_board();
         pthread_mutex_unlock(&mutex);
-        
+
         check = true; //switches the write function to true where it writes to all nodes the board once
-        
+
         pthread_mutex_lock(&mutex);
-        bool correct_choice = pick_two(f, s); //checks if its right or wrong
+        bool correct_choice = pick_two(f, s, player); //checks if its right or wrong
         pthread_mutex_unlock(&mutex);
-        if (correct_choice) 
+        if (correct_choice)
         {
             status = write(newsockfd, "Correct!  \n", 11);
         }
@@ -323,8 +366,8 @@ void *handle_connection_sync(void *socket_pack) //new thread function just for t
         card_set[f - 97].showing = false; //resets the showing of the board
         card_set[s - 97].showing = false;
         write_board();
-        
-        
+        print_scores();
+
         bool complete = check_completion(); //checks if the game is complete
         if (complete)
         {
@@ -337,13 +380,13 @@ void *handle_connection_sync_write(void *p_newsockfd) //thread thats only purpos
     int newsockfd = *((int *)p_newsockfd);
     char buffer[256];
     int status;
-    while(1)
+    while (1)
     {
-      if(check)
-      {
-        status = write(newsockfd, board_str, 255);
-        check = false;
-      }
+        if (check)
+        {
+            status = write(newsockfd, board_str, 255);
+            check = false;
+        }
     }
 }
 void *handle_connection(void *socket_pack)
@@ -356,13 +399,13 @@ void *handle_connection(void *socket_pack)
     char buffer[256];
     int status;
     int new_order = 0;
-    
+
     read_from(newsockfd); //read for the ready
     int res_ready = strcmp(buffer2, "ready\n");
     while (res_ready != 0)
     {
         status = write(newsockfd, "Send message \'ready\' to begin game.\n", 36);
-        
+
         if (status < 0)
         {
             perror("ERROR writing to socket");
@@ -382,26 +425,30 @@ void *handle_connection(void *socket_pack)
             // *shrugs*
         }
     }
-    if((pthread_self() == th1 && order == 1) || (pthread_self() == th2 && order == 2) ||
-       (pthread_self() == th3 && order == 3) || (pthread_self() == th4 && order == 4) ||
-       (pthread_self() == th5 && order == 5)) 
-    {   
+    if ((pthread_self() == th1 && order == 1) || (pthread_self() == th2 && order == 2) ||
+        (pthread_self() == th3 && order == 3) || (pthread_self() == th4 && order == 4) ||
+        (pthread_self() == th5 && order == 5))
+    {
         char buffyyyy[2] = "\0";
         struct sockaddr_in serv_addr;
         char *host_addr = "127.0.0.1";
         int self_sock = socket(AF_INET, SOCK_STREAM, 0);
-        if(status < 0)
-        {printf("Error : Could not create socket \n");}  
+        if (status < 0)
+        {
+            printf("Error : Could not create socket \n");
+        }
 
-        memset(&serv_addr, 0, sizeof(serv_addr)); 
+        memset(&serv_addr, 0, sizeof(serv_addr));
 
         serv_addr.sin_family = AF_INET;
         serv_addr.sin_port = htons(PORTNUM);
         serv_addr.sin_addr.s_addr = inet_addr(host_addr);
         status = connect(self_sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
         if (status < 0)
-        {printf(" error in connecting \n");}
-        
+        {
+            printf(" error in connecting \n");
+        }
+
         status = write(newsockfd, buffyyyy, strlen(buffyyyy));
         //status = shutdown(next_socket, SHUT_RD);
         close(next_socket);
@@ -493,10 +540,10 @@ void *handle_connection(void *socket_pack)
         status = write(newsockfd, board_str, strlen(board_str));
 
         pthread_mutex_lock(&mutex);
-        bool correct_choice = pick_two(f, s);
+        bool correct_choice = pick_two(f, s, new_order);
         pthread_mutex_unlock(&mutex);
         complete = check_completion();
-        
+
         card_set[f - 97].showing = false;
         card_set[s - 97].showing = false;
         if (complete)
@@ -512,6 +559,7 @@ void *handle_connection(void *socket_pack)
             status = write(newsockfd, "Incorrect!\n", 11);
         }
         write_board();
+        print_scores();
 
         p[new_order].turn = false; //makes current players turn complete
         if (new_order + 1 < order)
@@ -552,7 +600,7 @@ int main(int argc, char *argv[])
     pthread_attr_init(&attr);
     pthread_mutex_init(&mutex, NULL);
 
-    while(num != '1' && num != '2')
+    while (num != '1' && num != '2')
     {
         bzero(buffer, 256);
         printf("Turn based play (enter '1') or Free-for-all (enter '2'): ");
@@ -575,7 +623,7 @@ int main(int argc, char *argv[])
     }
     write_board(); //Displays flipped board on server side
     printf("%s\n", board_str);
-      /* First call to socket() function */
+    /* First call to socket() function */
     sockfd = socket(AF_INET, SOCK_STREAM, DEFAULT_PROTOCOL);
 
     if (sockfd < 0)
@@ -606,286 +654,296 @@ int main(int argc, char *argv[])
 
     listen(sockfd, 5);
     clilen = sizeof(cli_addr);
-    if(num == '1') //if num one its turn based
+    if (num == '1') //if num one its turn based
     {
-      printf("Turn Based\n");
-      //while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
-      //{
-          if (order == 0)
-          {
-              newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }
-              p[order].turn = true; //sets p1's turn as on for being the first to connect
-              p[order].points = 0;
-              bzero(buffer, 256);
-              status =  write(newsockfd,"Turn Based  \n", 13);
-              bzero(buffer,256);
-              status = write(newsockfd, "You are Player #1\n", 18);
-              sock_pack1->p_newsockfd = newsockfd;
-              sock_pack1->next_sock = sockfd;
-              pthread_create(&th1, &attr, *handle_connection, (void *)sock_pack1); //creates thread function for p1
-              order++;
-          }
-          if (order == 1)
-          {
-              newsockfd2 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd2 < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }
-              if(ready_count != order)
-              {
-                p[order].turn = false;                                        //sets p2's turn as not on
+        printf("Turn Based\n");
+        //while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
+        //{
+        if (order == 0)
+        {
+            newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+            if (newsockfd < 0)
+            {
+                perror("ERROR on accept");
+                exit(1);
+            }
+            p[order].turn = true; //sets p1's turn as on for being the first to connect
+            p[order].points = 0;
+            p[order].player_num = order + 1;
+            bzero(buffer, 256);
+            status = write(newsockfd, "Turn Based  \n", 13);
+            bzero(buffer, 256);
+            status = write(newsockfd, "You are Player #1\n", 18);
+            sock_pack1->p_newsockfd = newsockfd;
+            sock_pack1->next_sock = sockfd;
+            pthread_create(&th1, &attr, *handle_connection, (void *)sock_pack1); //creates thread function for p1
+            order++;
+        }
+        if (order == 1)
+        {
+            newsockfd2 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+            if (newsockfd2 < 0)
+            {
+                perror("ERROR on accept");
+                exit(1);
+            }
+            if (ready_count != order)
+            {
+                p[order].turn = false; //sets p2's turn as not on
                 p[order].points = 0;
+                p[order].player_num = order + 1;
                 bzero(buffer, 256);
-                status =  write(newsockfd2,"Turn Based  \n", 13);
-                bzero(buffer,256);
+                status = write(newsockfd2, "Turn Based  \n", 13);
+                bzero(buffer, 256);
                 status = write(newsockfd2, "You are Player #2\n", 18);
                 sock_pack2->p_newsockfd = newsockfd2;
                 sock_pack2->next_sock = sockfd;
                 pthread_create(&th2, &attr, *handle_connection, (void *)sock_pack2); //creates thread function for p2
                 order++;
-              }
-          }
-          if (order == 2)
-          {
-              newsockfd3 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd3 < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }
-              if(ready_count != order)
-              {
-                p[order].turn = false;                                        //sets p3's turn as not on
+            }
+        }
+        if (order == 2)
+        {
+            newsockfd3 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+            if (newsockfd3 < 0)
+            {
+                perror("ERROR on accept");
+                exit(1);
+            }
+            if (ready_count != order)
+            {
+                p[order].turn = false; //sets p3's turn as not on
                 p[order].points = 0;
+                p[order].player_num = order + 1;
                 sock_pack3->p_newsockfd = newsockfd3;
                 sock_pack3->next_sock = sockfd;
                 bzero(buffer, 256);
-                status =  write(newsockfd3,"Turn Based  \n", 13);
-                bzero(buffer,256);
+                status = write(newsockfd3, "Turn Based  \n", 13);
+                bzero(buffer, 256);
                 status = write(newsockfd3, "You are Player #3\n", 18);
                 pthread_create(&th3, &attr, *handle_connection, (void *)sock_pack3); //creates thread function for p3
                 order++;
-              }
-          }
-          if (order == 3)
-          {
-              newsockfd4 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd4 < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }
-              if(ready_count != order)
-              {
-                p[order].turn = false;                                        //sets p4's turn as not on
+            }
+        }
+        if (order == 3)
+        {
+            newsockfd4 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+            if (newsockfd4 < 0)
+            {
+                perror("ERROR on accept");
+                exit(1);
+            }
+            if (ready_count != order)
+            {
+                p[order].turn = false; //sets p4's turn as not on
                 p[order].points = 0;
+                p[order].player_num = order + 1;
                 sock_pack4->p_newsockfd = newsockfd4;
                 sock_pack4->next_sock = sockfd;
                 bzero(buffer, 256);
-                status =  write(newsockfd4,"Turn Based  \n", 13);
-                bzero(buffer,256);
+                status = write(newsockfd4, "Turn Based  \n", 13);
+                bzero(buffer, 256);
                 status = write(newsockfd4, "You are Player #4\n", 18);
                 pthread_create(&th4, &attr, *handle_connection, (void *)sock_pack4); //creates thread function for p4
                 order++;
-              }
-          }
-          if (order == 4)
-          {
-              newsockfd5 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd5 < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }
-              if(ready_count != order)
-              {
-                p[order].turn = false;                                        //sets p5's turn as not on
+            }
+        }
+        if (order == 4)
+        {
+            newsockfd5 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+            if (newsockfd5 < 0)
+            {
+                perror("ERROR on accept");
+                exit(1);
+            }
+            if (ready_count != order)
+            {
+                p[order].turn = false; //sets p5's turn as not on
                 p[order].points = 0;
+                p[order].player_num = order + 1;
                 sock_pack5->p_newsockfd = newsockfd5;
                 sock_pack5->next_sock = sockfd;
                 bzero(buffer, 256);
-                status =  write(newsockfd5,"Turn Based  \n", 13);
-                bzero(buffer,256);
+                status = write(newsockfd5, "Turn Based  \n", 13);
+                bzero(buffer, 256);
                 status = write(newsockfd5, "You are Player #5\n", 18);
                 pthread_create(&th5, &attr, *handle_connection, (void *)sock_pack5); //creates thread function for p5
                 order++;
-              }
-          }
-      //}
-      printf("Joining threads\n");
-      pthread_join(th1, NULL);
-      close(newsockfd);
-      if(order > 1)
-      {
-          close(newsockfd2);
-          pthread_join(th2, NULL);
-      }
-      if(order > 2)
-      {
-          close(newsockfd3);
-          pthread_join(th3, NULL);
-      }
-      if(order > 3)
-      {
-          close(newsockfd4);
-          pthread_join(th4, NULL);
-      }
-      if(order > 4)
-      {
-          close(newsockfd5);
-          pthread_join(th5, NULL);
-      }
-      printf("Threads have been joined\n");
+            }
+        }
+        //}
+        printf("Joining threads\n");
+        pthread_join(th1, NULL);
+        close(newsockfd);
+        if (order > 1)
+        {
+            close(newsockfd2);
+            pthread_join(th2, NULL);
+        }
+        if (order > 2)
+        {
+            close(newsockfd3);
+            pthread_join(th3, NULL);
+        }
+        if (order > 3)
+        {
+            close(newsockfd4);
+            pthread_join(th4, NULL);
+        }
+        if (order > 4)
+        {
+            close(newsockfd5);
+            pthread_join(th5, NULL);
+        }
+        printf("Threads have been joined\n");
     }
     else //if num is 2 its random
     {
-      printf("Free-for-all\n");
-      while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
-      {
-          if (order == 0)
-          {  
-              newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }
-              p[order].points = 0;
-              sock_pack1->p_newsockfd = newsockfd;
-              sock_pack1->next_sock = sockfd;
-              bzero(buffer,256);
-              status = write(newsockfd, "Free-for-all\n", 13);
-              bzero(buffer,256);
-              status = write(newsockfd, "You are Player #1\n", 18);
-              pthread_create(&th1, &attr, *handle_connection_sync,(void *)sock_pack1); //creates thread function for p1
-              pthread_create(&th6, &attr, *handle_connection_sync_write, &newsockfd); //creates thread function for writing the board
-              order++;
-          }
-          if (order == 1)
-          {
-              newsockfd2 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd2 < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }  
-              if(ready_count != order)
-              {                                  
+        printf("Free-for-all\n");
+        while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
+        {
+            if (order == 0)
+            {
+                newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+                if (newsockfd < 0)
+                {
+                    perror("ERROR on accept");
+                    exit(1);
+                }
                 p[order].points = 0;
-                sock_pack2->p_newsockfd = newsockfd2;
-                sock_pack2->next_sock = sockfd;
-                bzero(buffer,256);
-                status = write(newsockfd2, "Free-for-all\n", 13);
-                bzero(buffer,256);
-                status = write(newsockfd2, "You are Player #2\n", 18);
-                pthread_create(&th2, &attr, *handle_connection_sync,(void *)sock_pack2); //creates thread function for p2
-                pthread_create(&th7, &attr, *handle_connection_sync_write, &newsockfd2); //creates thread function for writing the board
+                p[order].player_num = order + 1;
+                sock_pack1->p_newsockfd = newsockfd;
+                sock_pack1->next_sock = sockfd;
+                bzero(buffer, 256);
+                status = write(newsockfd, "Free-for-all\n", 13);
+                bzero(buffer, 256);
+                status = write(newsockfd, "You are Player #1\n", 18);
+                pthread_create(&th1, &attr, *handle_connection_sync, (void *)sock_pack1); //creates thread function for p1
+                pthread_create(&th6, &attr, *handle_connection_sync_write, &newsockfd);   //creates thread function for writing the board
                 order++;
-              }
-          }
-          if (order == 2)
-          {
-              newsockfd3 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd3 < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }   
-              if(ready_count != order)
-              {                            
-                p[order].points = 0;
-                sock_pack3->p_newsockfd = newsockfd3;
-                sock_pack3->next_sock = sockfd;
-                bzero(buffer,256);
-                status = write(newsockfd3, "Free-for-all\n", 13);
-                bzero(buffer,256);
-                status = write(newsockfd3, "You are Player #3\n", 18);
-                pthread_create(&th3, &attr, *handle_connection_sync,(void *)sock_pack3); //creates thread function for p3
-                pthread_create(&th8, &attr, *handle_connection_sync_write, &newsockfd3); //creates thread function for writing the board
-                order++;
-              }
-          }
-          if (order == 3)
-          {
-              newsockfd4 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd4 < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }    
-              if(ready_count != order)
-              {                               
-                p[order].points = 0;
-                sock_pack4->p_newsockfd = newsockfd4;
-                sock_pack4->next_sock = sockfd;
-                bzero(buffer,256);
-                status = write(newsockfd4, "Free-for-all\n", 13);
-                bzero(buffer,256);
-                status = write(newsockfd4, "You are Player #4\n", 18);
-                pthread_create(&th4, &attr, *handle_connection_sync, (void *)sock_pack4); //creates thread function for p4
-                pthread_create(&th9, &attr, *handle_connection_sync_write, &newsockfd4); //creates thread function for writing the board
-                order++;
-              }
-          }
-          if (order == 4)
-          {
-              newsockfd5 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-              if (newsockfd5 < 0)
-              {
-                  perror("ERROR on accept");
-                  exit(1);
-              }   
-              if(ready_count != order)
-              {                           
-                p[order].points = 0;
-                sock_pack5->p_newsockfd = newsockfd5;
-                sock_pack5->next_sock = sockfd;
-                bzero(buffer,256);
-                status = write(newsockfd5, "Free-for-all\n", 13);
-                bzero(buffer,256);
-                status = write(newsockfd5, "You are Player #5\n", 18);
-                pthread_create(&th5, &attr, *handle_connection_sync, (void *)sock_pack5); //creates thread function for p5
-                pthread_create(&th10, &attr, *handle_connection_sync_write, &newsockfd5); //creates thread function for writing the board
-                order++;
-              }
-          }
-      }
-      printf("Waiting to join threads\n");
-      pthread_join(th1, NULL);
-      pthread_join(th6, NULL);
-      close(newsockfd);
-      if(order > 0)
-      {  
-        pthread_join(th2, NULL);
-        pthread_join(th7, NULL);
-        close(newsockfd2);
-      }
-      if(order > 1)
-      {
-        pthread_join(th3, NULL);
-        pthread_join(th8, NULL);
-        close(newsockfd3);
-      }
-      if(order > 2)
-      {
-        pthread_join(th4, NULL);
-        pthread_join(th9, NULL);
-        close(newsockfd4);
-      }
-      if(order > 3)
-      {
-        pthread_join(th5, NULL);
-        pthread_join(th10, NULL);
-        close(newsockfd5);
-      }
-      printf("Threads have been joined\n");
+            }
+            if (order == 1)
+            {
+                newsockfd2 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+                if (newsockfd2 < 0)
+                {
+                    perror("ERROR on accept");
+                    exit(1);
+                }
+                if (ready_count != order)
+                {
+                    p[order].points = 0;
+                    p[order].player_num = order + 1;    
+                    sock_pack2->p_newsockfd = newsockfd2;
+                    sock_pack2->next_sock = sockfd;
+                    bzero(buffer, 256);
+                    status = write(newsockfd2, "Free-for-all\n", 13);
+                    bzero(buffer, 256);
+                    status = write(newsockfd2, "You are Player #2\n", 18);
+                    pthread_create(&th2, &attr, *handle_connection_sync, (void *)sock_pack2); //creates thread function for p2
+                    pthread_create(&th7, &attr, *handle_connection_sync_write, &newsockfd2);  //creates thread function for writing the board
+                    order++;
+                }
+            }
+            if (order == 2)
+            {
+                newsockfd3 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+                if (newsockfd3 < 0)
+                {
+                    perror("ERROR on accept");
+                    exit(1);
+                }
+                if (ready_count != order)
+                {
+                    p[order].points = 0;
+                    p[order].player_num = order + 1; 
+                    sock_pack3->p_newsockfd = newsockfd3;
+                    sock_pack3->next_sock = sockfd;
+                    bzero(buffer, 256);
+                    status = write(newsockfd3, "Free-for-all\n", 13);
+                    bzero(buffer, 256);
+                    status = write(newsockfd3, "You are Player #3\n", 18);
+                    pthread_create(&th3, &attr, *handle_connection_sync, (void *)sock_pack3); //creates thread function for p3
+                    pthread_create(&th8, &attr, *handle_connection_sync_write, &newsockfd3);  //creates thread function for writing the board
+                    order++;
+                }
+            }
+            if (order == 3)
+            {
+                newsockfd4 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+                if (newsockfd4 < 0)
+                {
+                    perror("ERROR on accept");
+                    exit(1);
+                }
+                if (ready_count != order)
+                {
+                    p[order].points = 0;
+                    p[order].player_num = order + 1; 
+                    sock_pack4->p_newsockfd = newsockfd4;
+                    sock_pack4->next_sock = sockfd;
+                    bzero(buffer, 256);
+                    status = write(newsockfd4, "Free-for-all\n", 13);
+                    bzero(buffer, 256);
+                    status = write(newsockfd4, "You are Player #4\n", 18);
+                    pthread_create(&th4, &attr, *handle_connection_sync, (void *)sock_pack4); //creates thread function for p4
+                    pthread_create(&th9, &attr, *handle_connection_sync_write, &newsockfd4);  //creates thread function for writing the board
+                    order++;
+                }
+            }
+            if (order == 4)
+            {
+                newsockfd5 = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+                if (newsockfd5 < 0)
+                {
+                    perror("ERROR on accept");
+                    exit(1);
+                }
+                if (ready_count != order)
+                {
+                    p[order].points = 0;
+                    p[order].player_num = order + 1; 
+                    sock_pack5->p_newsockfd = newsockfd5;
+                    sock_pack5->next_sock = sockfd;
+                    bzero(buffer, 256);
+                    status = write(newsockfd5, "Free-for-all\n", 13);
+                    bzero(buffer, 256);
+                    status = write(newsockfd5, "You are Player #5\n", 18);
+                    pthread_create(&th5, &attr, *handle_connection_sync, (void *)sock_pack5); //creates thread function for p5
+                    pthread_create(&th10, &attr, *handle_connection_sync_write, &newsockfd5); //creates thread function for writing the board
+                    order++;
+                }
+            }
+        }
+        printf("Waiting to join threads\n");
+        pthread_join(th1, NULL);
+        pthread_join(th6, NULL);
+        close(newsockfd);
+        if (order > 0)
+        {
+            pthread_join(th2, NULL);
+            pthread_join(th7, NULL);
+            close(newsockfd2);
+        }
+        if (order > 1)
+        {
+            pthread_join(th3, NULL);
+            pthread_join(th8, NULL);
+            close(newsockfd3);
+        }
+        if (order > 2)
+        {
+            pthread_join(th4, NULL);
+            pthread_join(th9, NULL);
+            close(newsockfd4);
+        }
+        if (order > 3)
+        {
+            pthread_join(th5, NULL);
+            pthread_join(th10, NULL);
+            close(newsockfd5);
+        }
+        printf("Threads have been joined\n");
     }
     free(sock_pack1);
     free(sock_pack2);
