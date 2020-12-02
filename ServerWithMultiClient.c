@@ -11,7 +11,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define PORTNUM 5239       /* the port number the server will listen to*/
+#define PORTNUM 5247       /* the port number the server will listen to*/
 #define DEFAULT_PROTOCOL 0 /* constant for default protocol */
 #define SEMKEY ((key_t)400L)
 #define NUM_CARDS 18
@@ -212,8 +212,19 @@ void *handle_connection_sync(void *socket_pack) //new thread function just for t
     char buffer[256];
     int status;
     int player;
-
+    bool more_connect = false;
     bzero(buffer, 256);
+
+    while(order < 2) //doesn't continue until more than one player connects/ cant play game with only 1 player
+    {
+        if(!more_connect)
+        {
+            printf("Waiting for more players to connect...\n");
+            more_connect = true;
+        }
+    }
+    
+
     //status = write(newsockfd, "Free-for-all\n", 255); //sends message of the game mode to client
     //status = write(newsockfd,"Send message \'ready\' to begin game.\n", 36);
     read_from(newsockfd); //read for the ready
@@ -399,6 +410,17 @@ void *handle_connection(void *socket_pack)
     char buffer[256];
     int status;
     int new_order = 0;
+    bool more_connect = false;
+    
+    while(order < 2) //doesn't continue until more than one player connects/ cant play game with only 1 player
+    {
+        if(!more_connect)
+        {
+            printf("Waiting for more players to connect...\n");
+            more_connect = true;
+        }
+    }
+    
 
     read_from(newsockfd); //read for the ready
     int res_ready = strcmp(buffer2, "ready\n");
@@ -416,7 +438,7 @@ void *handle_connection(void *socket_pack)
         res_ready = strcmp(buffer2, "ready\n");
     }
     ready_count++;
-    if (ready_count < order)
+    if (ready_count < order)//// && order > 1
     {
         printf("%d out of %d players connected.\n", ready_count, order);
         //printf("Waiting for more players...\n");
