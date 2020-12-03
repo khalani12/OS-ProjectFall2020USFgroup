@@ -305,6 +305,11 @@ static void activate_board (GtkApplication* app, gpointer user_data)
   g_signal_connect(button, "clicked", G_CALLBACK(add_q_to_buffer), user_data);
   g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
   gtk_grid_attach (GTK_GRID (grid), button, 4, 3, 1, 1);
+  
+  button = gtk_button_new_with_label("r");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_r_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 5, 3, 1, 1);
  
   gtk_widget_show_all (window);
 }
@@ -414,14 +419,11 @@ void main(int argc, char *argv[])
     app = gtk_application_new("OS.card.game", G_APPLICATION_FLAGS_NONE);
     g_signal_connect(app, "activate", G_CALLBACK (activate), &buffer);
 
-    //while (res != 0)
-    //{
     bzero(buffer, 256); //starts socket
-    //fgets(buffer, 255, stdin);
 
     status = g_application_run (G_APPLICATION (app), argc, argv);
     res = strcmp(buffer, "ready\n"); // ready check
-    //}
+
     g_object_unref(app);
 
     status = write(socketid, buffer, strlen(buffer));
@@ -493,15 +495,16 @@ void main(int argc, char *argv[])
             char f;
             while (!first_choice_valid)
             {
-                bzero(buffer, 256);
-                printf("Opening board window...\n");
-                GtkApplication *card_select_app;
-                card_select_app = gtk_application_new("cardone.select.server", G_APPLICATION_FLAGS_NONE);
-                g_signal_connect(card_select_app, "activate", G_CALLBACK (activate_board), &buffer);
+                printf("Displaying card selection window...\n");
+                GtkApplication *app_select1;
+                app_select1 = gtk_application_new("cardone.select.client", G_APPLICATION_FLAGS_NONE);
+                g_signal_connect(app_select1, "activate", G_CALLBACK (activate_board), &buffer);
 
-                status = g_application_run (G_APPLICATION (card_select_app), argc, argv);
-                g_object_unref(card_select_app);
-                
+                bzero(buffer, 256); //starts socket
+
+                status = g_application_run (G_APPLICATION (app_select1), argc, argv);
+
+                g_object_unref(app_select1);
                 //printf("Enter first card: "); //writes first card
                 //bzero(buffer, 256);
                 //fgets(buffer, 255, stdin);
@@ -534,18 +537,20 @@ void main(int argc, char *argv[])
             bool second_choice_valid = false;
             while (!second_choice_valid)
             {
-                bzero(buffer, 256);
+                printf("Displaying card selection window...\n");
+                GtkApplication *app_select2;
+                app_select2 = gtk_application_new("cardtwo.select.client", G_APPLICATION_FLAGS_NONE);
+                g_signal_connect(app_select2, "activate", G_CALLBACK (activate_board), &buffer);
+
+                bzero(buffer, 256); //starts socket
+
+                status = g_application_run (G_APPLICATION (app_select2), argc, argv);
+
+                g_object_unref(app_select2);
                 //printf("Enter second card: "); //writes second card
                 //bzero(buffer, 256);
                 //fgets(buffer, 255, stdin);
-                printf("Opening board window...\n");
-                card_select_app = gtk_application_new("cardtwo.select.server", G_APPLICATION_FLAGS_NONE);
-                g_signal_connect(card_select_app, "activate", G_CALLBACK (activate_board), &buffer);
-
-                status = g_application_run (G_APPLICATION (card_select_app), argc, argv);
-                g_object_unref(card_select_app);
                 char s = buffer[0];
-                
                 if (s > 96 && s < 115 && f != s)
                 {
                     second_choice_valid = 1;

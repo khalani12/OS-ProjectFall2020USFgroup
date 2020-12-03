@@ -386,6 +386,8 @@ void *handle_connection_sync(void *socket_pack) //new thread function just for t
             break;
         }
     }
+    int winner = find_max_points();
+    printf("Player %d has won!\n", winner + 1);
 }
 void *handle_connection_sync_write(void *p_newsockfd) //thread thats only purpose is to write to all sockets just for randomized mode
 {
@@ -643,8 +645,6 @@ static void activate (GtkApplication* app, gpointer user_data)
 
 int main(int argc, char *argv[])
 {
-    //srand(time(0));
-    //int num = (rand() %(2-1+1))+1;
     int num = 0;
     int sockfd, newsockfd, portno, clilen, newsockfd2, newsockfd3, newsockfd4, newsockfd5;
     struct two_sockets *sock_pack1 = (struct two_sockets *)malloc(sizeof(struct two_sockets));
@@ -660,22 +660,17 @@ int main(int argc, char *argv[])
     pthread_attr_init(&attr);
     pthread_mutex_init(&mutex, NULL);
 
-    printf("Opening window...\n");
+    printf("Opening mode selection window...\n");
     GtkApplication *app;
     app = gtk_application_new("mode.select.server", G_APPLICATION_FLAGS_NONE);
     g_signal_connect(app, "activate", G_CALLBACK (activate), &num);
+
+    bzero(buffer, 256); //starts socket
 
     status = g_application_run (G_APPLICATION (app), argc, argv);
 
     g_object_unref(app);
 
-    // while (num != '1' && num != '2')
-    // {
-    //     bzero(buffer, 256);
-    //     printf("Turn based play (enter '1') or Free-for-all (enter '2'): ");
-    //     fgets(buffer, 255, stdin);
-    //     num = buffer[0];
-    // }
     assign_cards(); // initializes game board IMPORTANT
 
     int i;
