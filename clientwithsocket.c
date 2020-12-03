@@ -13,11 +13,10 @@ on a machine. The name of this machine must be entered in the function gethostby
 #include <netdb.h>
 #include <stdbool.h>
 #include <pthread.h>
-#include <gtk/gtk.h>
 
-#define PORTNUM 5239                /* the port number that the server is listening to*/
+#define PORTNUM 5310                /* the port number that the server is listening to*/
 #define DEFAULT_PROTOCOL 0          /* constant for default protocol*/
-#define SERVER_NODE_NAME "osnode05" /* UPDATE THIS STRING WITH NODE THE SERVER IS RUNNING ON */
+#define SERVER_NODE_NAME "osnode02" /* UPDATE THIS STRING WITH NODE THE SERVER IS RUNNING ON */
 
 pthread_t th1, th2;
 pthread_mutex_t mutex;
@@ -27,6 +26,7 @@ bool third_check = false;
 bool not_taken = true;
 bool taken = false;
 bool reading = true;
+bool restart = false;
 
 void *listen_connection(void *p_newsockfd) //thread function just for reading **FIX ME** Don't know how to make it print out the things in proper order
 {
@@ -40,6 +40,42 @@ void *listen_connection(void *p_newsockfd) //thread function just for reading **
         status = read(newsockfd, buffer, 255);
         int res = strcmp(buffer, "Taken\n"); //this is where im trying to make it realize the symbol is taken
         int res2 = strcmp(buffer, "Not Taken\n");
+        int count2 = 0;
+       int i = 0;
+       int res_quit = 1;
+       for(i = 0; i < strlen(buffer); i++)
+       {
+           if(buffer[i] == 'W')
+           {
+               res_quit = 0;
+           }
+       }
+        if(res_quit == 0)
+        {
+            restart = true;
+            bzero(buffer,256);
+            status = read(newsockfd, buffer, 255);
+            printf("\n%s\n", buffer); //prints winner message
+
+            printf("Would you like to play again?\nY/N: ");
+            bzero(buffer, 256);
+            fgets(buffer, 255, stdin);
+            char c = buffer[0];
+            
+            if(c == 'n')
+            {
+                status = write(newsockfd,buffer,strlen(buffer));
+                close(newsockfd);
+                exit(0);
+                break;
+            }
+            else
+            {
+                status = write(newsockfd,buffer,strlen(buffer));
+                restart = true;
+            }
+            res_quit = 1;
+        }
         if (res == 0)
         {
             taken = true; //if taken
@@ -103,7 +139,16 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
             }
             else
             {
-                printf("Not a valid letter choice.\n");
+                if(restart)
+                {
+                    status = write(newsockfd,buffer,strlen(buffer));
+                    first_choice_valid = 0;
+                    restart = false;
+                }
+                else
+                {
+                    printf("Not a valid letter choice.\n");
+                }
             }
             //pthread_mutex_lock(&mutex);//protected write for first client to enter in their card and modifies the board
             status = write(newsockfd, buffer, strlen(buffer));
@@ -165,42 +210,8 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
         }
     }
 }
-
-static void add_to_buffer(GtkWidget *widget, gpointer data)
-{
-    strcpy(data, "ready\n");
-}
-
-static void activate (GtkApplication* app, gpointer user_data)
-{
-  GtkWidget *window;
-  GtkWidget *button;
-  GtkWidget *button_box;
-  GtkWidget *text;
-  GtkWidget *grid;
-
-  window = gtk_application_window_new (app);
-  gtk_window_set_title (GTK_WINDOW (window), "Ready Window");
-  gtk_window_set_default_size (GTK_WINDOW (window), 250, 75);
-
-  grid = gtk_grid_new();
-  gtk_container_add(GTK_CONTAINER(window), grid);
-
-  text = gtk_label_new("Click \'Ready\' button to begin game.");
-  gtk_grid_attach(GTK_GRID(grid), text, 1, 0, 1, 1);
-  
-  button_box = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
-  button = gtk_button_new_with_label("Ready");
-  g_signal_connect(button, "clicked", G_CALLBACK(add_to_buffer), user_data);
-  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
-  gtk_container_add(GTK_CONTAINER(button_box), button);
-
-  gtk_grid_attach (GTK_GRID (grid), button_box, 0, 1, 2, 1);
-
-  gtk_widget_show_all (window);
-}
-
-void main(int argc, char *argv[])
+bool game = false;
+void main()
 {
     int port;
     int socketid;     /*will hold the id of the socket created*/
@@ -257,35 +268,32 @@ void main(int argc, char *argv[])
     bzero(buffer, 256);
     status = read(socketid, buffer, 13);
     printf("%s", buffer);
-    
-    char game_mode[255];
-    strcpy(game_mode,buffer);  //reads the game mode type
+    char *game_mode;
+    strcpy(game_mode, buffer); //reads the game mode type
+
     bzero(buffer, 256);
     status = read(socketid, buffer, 18); //reads the player # and prints it
     printf("%s", buffer);
-    printf("Displaying window...\n", 36);
+    while(!game){
+    printf("Send message \'ready\' to begin game.\n", 36);
     int res = 1;
-    
-    GtkApplication *app;
-    app = gtk_application_new("OS.card.game", G_APPLICATION_FLAGS_NONE);
-    g_signal_connect(app, "activate", G_CALLBACK (activate), &buffer);
+    while (res != 0)
+    {
+        bzero(buffer, 256); //starts socket
+        fgets(buffer, 255, stdin);
 
-    //while (res != 0)
-    //{
-    bzero(buffer, 256); //starts socket
-    //fgets(buffer, 255, stdin);
-
-    status = g_application_run (G_APPLICATION (app), argc, argv);
-    res = strcmp(buffer, "ready\n"); // ready check
-    //}
-    g_object_unref(app);
-
+        res = strcmp(buffer, "ready\n"); // ready check
+    }
     status = write(socketid, buffer, strlen(buffer));
     if (status < 0)
     {
         printf("error while sending client message to server\n");
     }
     res = strcmp(game_mode, "Turn Based  \n");
+    if(res!= 0)
+    {
+        res = strcmp(game_mode, "Free-for-all  \n");
+    }
     if (res == 0)
     {
         int res_quit = 1;
@@ -296,6 +304,10 @@ void main(int argc, char *argv[])
             {
                 int count1 = 0;
                 int count2 = 0;
+                if (res_quit == 0)
+                {
+                    break;
+                } 
                 bzero(buffer, 256);
                 status = read(socketid, buffer, 39);
                 if (status < 0)
@@ -311,28 +323,31 @@ void main(int argc, char *argv[])
                 }
                 buffer3[28] = '\0';
 
-                char buffer4[256]; // buffer for potential winner string
+                char buffer4[11]; // buffer for potential winner string
                 while (count2 < 11)
                 {
                     buffer4[count2] = buffer[count2];
                     count2++;
                 }
-                buffer4[11] = '\0';
+                buffer4[count2] = '\0';
                 res_wait = strcmp(buffer3, "It is the start of your turn");
                 res_quit = strcmp(buffer4, "Winner!   \n");
-                if (res_wait == 0)
+                if (res_quit == 0)
+                {
+                    printf("Game has ended\n");
+                    break;
+                } //other player won :(
+                else if (res_wait == 0)
                 {
                     printf("%s\n", buffer3);
                 } //turn start printed here
-                else if (res_quit == 0)
-                {
-                    break;
-                } //other player won :(
                 else
                 {
                     printf("%s\n", buffer);
                 } //please wait is printed here
+                //printf("%d\n",res_quit);
             }
+            
             if (res_quit == 0)
             {
                 break;
@@ -437,9 +452,28 @@ void main(int argc, char *argv[])
         pthread_join(th2, NULL);
     }
     status = read(socketid, buffer, 18);
+    if(status < 0)
+    {
+        printf("Error reading\n.");
+    }
     printf("\n%s\n", buffer); //prints winner message
 
-    /* this closes the socket*/
-    close(socketid);
-    exit(0);
+    printf("Would you like to play again?\nY/N: ");
+    bzero(buffer, 256);
+    fgets(buffer, 255, stdin);
+    char c = buffer[0];
+    
+    if(c == 'n')
+    {
+      status = write(socketid,buffer,strlen(buffer));
+      game = true;
+      close(socketid);
+      exit(0);
+    }
+    else
+    {
+      status = write(socketid,buffer,strlen(buffer));
+      game = false;
+    }
+    }
 }
