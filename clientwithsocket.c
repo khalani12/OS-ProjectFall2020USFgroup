@@ -15,7 +15,7 @@ on a machine. The name of this machine must be entered in the function gethostby
 #include <pthread.h>
 #include <gtk/gtk.h>
 
-#define PORTNUM 5239                /* the port number that the server is listening to*/
+#define PORTNUM 5420                /* the port number that the server is listening to*/
 #define DEFAULT_PROTOCOL 0          /* constant for default protocol*/
 #define SERVER_NODE_NAME "osnode05" /* UPDATE THIS STRING WITH NODE THE SERVER IS RUNNING ON */
 
@@ -165,6 +165,150 @@ void *write_connection(void *p_newsockfd) //thread function for writing mainly
         }
     }
 }
+
+
+static void add_a_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "a\n");}
+static void add_b_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "b\n");}
+static void add_c_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "c\n");}
+static void add_d_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "d\n");}
+static void add_e_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "e\n");}
+static void add_f_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "f\n");}
+static void add_g_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "g\n");}
+static void add_h_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "h\n");}
+static void add_i_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "i\n");}
+static void add_j_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "j\n");}
+static void add_k_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "k\n");}
+static void add_l_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "l\n");}
+static void add_m_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "m\n");}
+static void add_n_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "n\n");}
+static void add_o_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "o\n");}
+static void add_p_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "p\n");}
+static void add_q_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "q\n");}
+static void add_r_to_buffer(GtkWidget *widget, gpointer data)
+{strcpy(data, "r\n");}
+ 
+static void activate_board (GtkApplication* app, gpointer user_data)
+{
+  GtkWidget *window;
+  GtkWidget *button;
+  GtkWidget *text;
+  GtkWidget *grid;
+ 
+  window = gtk_application_window_new (app);
+  gtk_window_set_title (GTK_WINDOW (window), "Board Window");
+  gtk_window_set_default_size (GTK_WINDOW (window), 250, 75);
+ 
+  grid = gtk_grid_new();
+  gtk_container_add(GTK_CONTAINER(window), grid);
+ 
+  text = gtk_label_new("Select card");
+  gtk_grid_attach(GTK_GRID(grid), text, 0, 0, 2, 1);
+  
+  button = gtk_button_new_with_label("a");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_a_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 0, 1, 1, 1);
+ 
+  button = gtk_button_new_with_label("b");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_b_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 1, 1, 1, 1);
+ 
+  button = gtk_button_new_with_label("c");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_c_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 2, 1, 1, 1);
+ 
+  button = gtk_button_new_with_label("d");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_d_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 3, 1, 1, 1);
+ 
+  button = gtk_button_new_with_label("e");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_e_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 4, 1, 1, 1);
+ 
+  button = gtk_button_new_with_label("f");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_f_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 5, 1, 1, 1);
+ 
+  button = gtk_button_new_with_label("g");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_g_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 0, 2, 1, 1);
+ 
+  button = gtk_button_new_with_label("h");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_h_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 1, 2, 1, 1);
+ 
+  button = gtk_button_new_with_label("i");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_i_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 2, 2, 1, 1);
+ 
+  button = gtk_button_new_with_label("j");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_j_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 3, 2, 1, 1);
+ 
+  button = gtk_button_new_with_label("k");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_k_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 4, 2, 1, 1);
+ 
+  button = gtk_button_new_with_label("l");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_l_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 5, 2, 1, 1);
+ 
+  button = gtk_button_new_with_label("m");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_m_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 0, 3, 1, 1);
+ 
+  button = gtk_button_new_with_label("n");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_n_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 1, 3, 1, 1);
+ 
+  button = gtk_button_new_with_label("o");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_o_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 2, 3, 1, 1);
+ 
+  button = gtk_button_new_with_label("p");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_p_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 3, 3, 1, 1);
+ 
+  button = gtk_button_new_with_label("q");
+  g_signal_connect(button, "clicked", G_CALLBACK(add_q_to_buffer), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 4, 3, 1, 1);
+ 
+  gtk_widget_show_all (window);
+}
+
 
 static void add_to_buffer(GtkWidget *widget, gpointer data)
 {
@@ -349,9 +493,18 @@ void main(int argc, char *argv[])
             char f;
             while (!first_choice_valid)
             {
-                printf("Enter first card: "); //writes first card
                 bzero(buffer, 256);
-                fgets(buffer, 255, stdin);
+                printf("Opening board window...\n");
+                GtkApplication *card_select_app;
+                card_select_app = gtk_application_new("cardone.select.server", G_APPLICATION_FLAGS_NONE);
+                g_signal_connect(card_select_app, "activate", G_CALLBACK (activate_board), &buffer);
+
+                status = g_application_run (G_APPLICATION (card_select_app), argc, argv);
+                g_object_unref(card_select_app);
+                
+                //printf("Enter first card: "); //writes first card
+                //bzero(buffer, 256);
+                //fgets(buffer, 255, stdin);
                 f = buffer[0];
                 if (f > 96 && f < 115)
                 {
@@ -381,10 +534,18 @@ void main(int argc, char *argv[])
             bool second_choice_valid = false;
             while (!second_choice_valid)
             {
-                printf("Enter second card: "); //writes second card
                 bzero(buffer, 256);
-                fgets(buffer, 255, stdin);
+                //printf("Enter second card: "); //writes second card
+                //bzero(buffer, 256);
+                //fgets(buffer, 255, stdin);
+                printf("Opening board window...\n");
+                card_select_app = gtk_application_new("cardtwo.select.server", G_APPLICATION_FLAGS_NONE);
+                g_signal_connect(card_select_app, "activate", G_CALLBACK (activate_board), &buffer);
+
+                status = g_application_run (G_APPLICATION (card_select_app), argc, argv);
+                g_object_unref(card_select_app);
                 char s = buffer[0];
+                
                 if (s > 96 && s < 115 && f != s)
                 {
                     second_choice_valid = 1;

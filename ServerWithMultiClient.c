@@ -10,8 +10,9 @@
 #include <errno.h>
 #include <time.h>
 #include <stdbool.h>
+#include <gtk/gtk.h>
 
-#define PORTNUM 5239       /* the port number the server will listen to*/
+#define PORTNUM 5420       /* the port number the server will listen to*/
 #define DEFAULT_PROTOCOL 0 /* constant for default protocol */
 #define SEMKEY ((key_t)400L)
 #define NUM_CARDS 18
@@ -212,8 +213,19 @@ void *handle_connection_sync(void *socket_pack) //new thread function just for t
     char buffer[256];
     int status;
     int player;
-
+    bool more_connect = false;
     bzero(buffer, 256);
+
+    while(order < 2) //doesn't continue until more than one player connects/ cant play game with only 1 player
+    {
+        if(!more_connect)
+        {
+            printf("Waiting for more players to connect...\n");
+            more_connect = true;
+        }
+    }
+    
+
     //status = write(newsockfd, "Free-for-all\n", 255); //sends message of the game mode to client
     //status = write(newsockfd,"Send message \'ready\' to begin game.\n", 36);
     read_from(newsockfd); //read for the ready
@@ -399,6 +411,17 @@ void *handle_connection(void *socket_pack)
     char buffer[256];
     int status;
     int new_order = 0;
+    bool more_connect = false;
+    
+    while(order < 2) //doesn't continue until more than one player connects/ cant play game with only 1 player
+    {
+        if(!more_connect)
+        {
+            printf("Waiting for more players to connect...\n");
+            more_connect = true;
+        }
+    }
+    
 
     read_from(newsockfd); //read for the ready
     int res_ready = strcmp(buffer2, "ready\n");
@@ -416,7 +439,7 @@ void *handle_connection(void *socket_pack)
         res_ready = strcmp(buffer2, "ready\n");
     }
     ready_count++;
-    if (ready_count < order)
+    if (ready_count < order)//// && order > 1
     {
         printf("%d out of %d players connected.\n", ready_count, order);
         //printf("Waiting for more players...\n");
@@ -581,11 +604,48 @@ void *handle_connection(void *socket_pack)
     return NULL;
 }
 
+
+static void set_turn_mode(GtkWidget *widget, gpointer data)
+{*(int*)data = 1;}
+ 
+static void activate (GtkApplication* app, gpointer user_data)
+{
+  GtkWidget *window;
+  GtkWidget *button;
+  GtkWidget *button_box;
+  GtkWidget *text;
+  GtkWidget *grid;
+ 
+  window = gtk_application_window_new (app);
+  gtk_window_set_title (GTK_WINDOW (window), "Mode Window");
+  //gtk_window_set_default_size (GTK_WINDOW (window), 300, 150);
+  
+  grid = gtk_grid_new();
+  
+  text = gtk_label_new("Choose Game Mode");
+  gtk_grid_attach(GTK_GRID(grid), text, 0, 0, 2, 1);
+  
+  button = gtk_button_new_with_label("Turn Based");
+  g_signal_connect(button, "clicked", G_CALLBACK(set_turn_mode), user_data);
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+ 
+  gtk_grid_attach (GTK_GRID (grid), button, 0, 2, 1, 1);
+ 
+  button = gtk_button_new_with_label("Free For All");
+  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
+  gtk_grid_attach (GTK_GRID (grid), button, 2, 2, 1, 1);
+  
+  gtk_container_add(GTK_CONTAINER(window), grid);
+ 
+  gtk_widget_show_all (window);
+}
+
+
 int main(int argc, char *argv[])
 {
     //srand(time(0));
     //int num = (rand() %(2-1+1))+1;
-    char num = '\0';
+    int num = 0;
     int sockfd, newsockfd, portno, clilen, newsockfd2, newsockfd3, newsockfd4, newsockfd5;
     struct two_sockets *sock_pack1 = (struct two_sockets *)malloc(sizeof(struct two_sockets));
     struct two_sockets *sock_pack2 = (struct two_sockets *)malloc(sizeof(struct two_sockets));
@@ -600,13 +660,22 @@ int main(int argc, char *argv[])
     pthread_attr_init(&attr);
     pthread_mutex_init(&mutex, NULL);
 
-    while (num != '1' && num != '2')
-    {
-        bzero(buffer, 256);
-        printf("Turn based play (enter '1') or Free-for-all (enter '2'): ");
-        fgets(buffer, 255, stdin);
-        num = buffer[0];
-    }
+    printf("Opening window...\n");
+    GtkApplication *app;
+    app = gtk_application_new("mode.select.server", G_APPLICATION_FLAGS_NONE);
+    g_signal_connect(app, "activate", G_CALLBACK (activate), &num);
+
+    status = g_application_run (G_APPLICATION (app), argc, argv);
+
+    g_object_unref(app);
+
+    // while (num != '1' && num != '2')
+    // {
+    //     bzero(buffer, 256);
+    //     printf("Turn based play (enter '1') or Free-for-all (enter '2'): ");
+    //     fgets(buffer, 255, stdin);
+    //     num = buffer[0];
+    // }
     assign_cards(); // initializes game board IMPORTANT
 
     int i;
@@ -654,7 +723,7 @@ int main(int argc, char *argv[])
 
     listen(sockfd, 5);
     clilen = sizeof(cli_addr);
-    if (num == '1') //if num one its turn based
+    if (num == 1) //if num one its turn based
     {
         printf("Turn Based\n");
         //while (order < 5) //exists after 2 players have connected. ** will need to append in implementation later
